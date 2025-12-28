@@ -1,0 +1,1 @@
+/usr/bin/cc -Wl,--dependency-file=CMakeFiles/main.dir/link.d CMakeFiles/main.dir/main.c.o -o main  /usr/lib/libSDL3.so.0.2.28
