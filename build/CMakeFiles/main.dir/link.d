@@ -2,7 +2,7 @@ main: \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o \
-  CMakeFiles/main.dir/main.c.o \
+  CMakeFiles/main.dir/src/main.c.o \
   /usr/lib/libSDL3.so.0.2.28 \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/libgcc.a \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libgcc_s.so \
@@ -33,7 +33,7 @@ main: \
 
 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o:
 
-CMakeFiles/main.dir/main.c.o:
+CMakeFiles/main.dir/src/main.c.o:
 
 /usr/lib/libSDL3.so.0.2.28:
 

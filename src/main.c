@@ -129,6 +129,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     SDL_EndGPUCopyPass(copyPass);
     SDL_SubmitGPUCommandBuffer(commandBuffer);
 
+    // Free up the transfer buffers
+    SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+    SDL_ReleaseGPUTransferBuffer(device, transferBuffer2);
+
     // Load the vertex shader code
     size_t vertexCodeSize;
     void* vertexCode = SDL_LoadFile("../shaders/vertex.spv", &vertexCodeSize);
@@ -310,10 +314,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     // Release buffers since they are no longer needed
     SDL_ReleaseGPUBuffer(device, vertexBuffer);
-    SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+    //SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
 
     SDL_ReleaseGPUBuffer(device, indexBuffer);
-    SDL_ReleaseGPUTransferBuffer(device, transferBuffer2);
+    //SDL_ReleaseGPUTransferBuffer(device, transferBuffer2);
 
     // release the pipeline
     SDL_ReleaseGPUGraphicsPipeline(device, graphicsPipeline);

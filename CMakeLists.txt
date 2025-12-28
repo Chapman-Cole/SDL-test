@@ -3,5 +3,5 @@ project(SDL-test LANGUAGES C)
 
 find_package(SDL3 REQUIRED)
 
-add_executable(main main.c)
+add_executable(main src/main.c)
 target_link_libraries(main PRIVATE SDL3::SDL3)
