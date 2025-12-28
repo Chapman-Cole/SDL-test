@@ -1,3 +1,0 @@
-/home/Cole/Programs/C-Programs/SDL-test/build/CMakeFiles/main.dir
-/home/Cole/Programs/C-Programs/SDL-test/build/CMakeFiles/edit_cache.dir
-/home/Cole/Programs/C-Programs/SDL-test/build/CMakeFiles/rebuild_cache.dir

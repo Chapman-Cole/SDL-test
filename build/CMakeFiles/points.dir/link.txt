@@ -1,1 +1,0 @@
-/usr/bin/cc -Wl,--dependency-file=CMakeFiles/points.dir/link.d CMakeFiles/points.dir/points.c.o -o points  /usr/lib/libSDL3.so.0.2.28
