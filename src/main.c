@@ -1,4 +1,5 @@
 #define SDL_MAIN_USE_CALLBACKS 1
+#include "GPUBuffers.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
@@ -7,23 +8,21 @@ typedef struct Vertex {
     float r, g, b, a;
 } Vertex;
 
-typedef struct UniformParams
-{
+typedef struct UniformParams {
     float u_scale;
-    float pad[3];   // 16 bytes total
-} UniformParams; 
+    float pad[3]; // 16 bytes total
+} UniformParams;
 
 static Vertex vertices[] = {
     {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, // Bottom left
-    {1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, // Bottom right
-    {-1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, // Top left
-    {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} // Top right
+    {1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},  // Bottom right
+    {-1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},  // Top left
+    {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}    // Top right
 };
 
 static Uint16 indices[] = {
     0, 1, 2,
-    1, 3, 2
-};
+    1, 3, 2};
 
 SDL_Window* window = NULL;
 SDL_GPUDevice* device = NULL;
@@ -61,77 +60,12 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     SDL_ClaimWindowForGPUDevice(device, window);
 
-    // Create the Vertex Buffer (generally an expensive operation)
-    SDL_GPUBufferCreateInfo bufferInfo = {0};
-    bufferInfo.size = sizeof(vertices);
-    bufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-    vertexBuffer = SDL_CreateGPUBuffer(device, &bufferInfo);
+    GPB_set_device(device);
 
-    // Create the transfer buffer to upload the vertex buffer to the gpu
-    SDL_GPUTransferBufferCreateInfo transferInfo = {0};
-    transferInfo.size = sizeof(vertices);
-    transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transferBuffer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
-
-    // Fill the transfer buffer with data by mapping it to a pointer
-    Vertex* data = (Vertex*)SDL_MapGPUTransferBuffer(device, transferBuffer, false);
-    SDL_memcpy(data, vertices, sizeof(vertices));
-    SDL_UnmapGPUTransferBuffer(device, transferBuffer);
-
-    // Find where the data is
-    SDL_GPUTransferBufferLocation location = {0};
-    location.transfer_buffer = transferBuffer; //size of the data in bytes
-    location.offset = 0; //begin writing from the first vertex
-
-    // Find where to upload the data to
-    SDL_GPUBufferRegion region = {0};
-    region.buffer = vertexBuffer;
-    region.size = sizeof(vertices); //size of data in bytes
-    region.offset = 0; //begin writing from the first vertex
-
-    // Create the index buffer
-    SDL_GPUBufferCreateInfo bufferInfo2 = {0};
-    bufferInfo2.size = sizeof(indices);
-    bufferInfo2.usage = SDL_GPU_BUFFERUSAGE_INDEX;
-    indexBuffer = SDL_CreateGPUBuffer(device, &bufferInfo2);
-
-    // Create the transfer buffer to upload the index buffer to the gpu
-    SDL_GPUTransferBufferCreateInfo transferInfo2 = {0};
-    transferInfo2.size = sizeof(vertices);
-    transferInfo2.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transferBuffer2 = SDL_CreateGPUTransferBuffer(device, &transferInfo2);
-
-    // Fill the transfer buffer with data by mapping it to a pointer
-    Uint16* data2 = (Uint16*)SDL_MapGPUTransferBuffer(device, transferBuffer2, false);
-    SDL_memcpy(data2, indices, sizeof(indices));
-    SDL_UnmapGPUTransferBuffer(device, transferBuffer2);
-
-    // Find where the data is on the gpu
-    SDL_GPUTransferBufferLocation location2 = {0};
-    location2.transfer_buffer = transferBuffer2;
-    location2.offset = 0;
-
-    // Find where to upload the data to
-    SDL_GPUBufferRegion region2 = {0};
-    region2.buffer = indexBuffer;
-    region2.size = sizeof(indices);
-    region2.offset = 0;
-
-    // Start a copy pass to get the data in the transfer buffer to the vertex buffer
-    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
-    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
-
-    // Upload the data
-    SDL_UploadToGPUBuffer(copyPass, &location, &region, true);
-    SDL_UploadToGPUBuffer(copyPass, &location2, &region2, true);
-
-    // End the copy pass
-    SDL_EndGPUCopyPass(copyPass);
-    SDL_SubmitGPUCommandBuffer(commandBuffer);
-
-    // Free up the transfer buffers
-    SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
-    SDL_ReleaseGPUTransferBuffer(device, transferBuffer2);
+    // Create the vertex and index buffers
+    vertexBuffer = GPB_create_buffer(SDL_GPU_BUFFERUSAGE_VERTEX, vertices, sizeof(vertices));
+    indexBuffer = GPB_create_buffer(SDL_GPU_BUFFERUSAGE_INDEX, indices, sizeof(indices));
+    GPB_submit_all_transfer_buffers();
 
     // Load the vertex shader code
     size_t vertexCodeSize;
@@ -139,11 +73,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // Create the vertex shader
     SDL_GPUShaderCreateInfo vertexInfo = {0};
-    vertexInfo.code = (Uint8*)vertexCode; //Convert to an array of bytes
+    vertexInfo.code = (Uint8*)vertexCode; // Convert to an array of bytes
     vertexInfo.code_size = vertexCodeSize;
     vertexInfo.entrypoint = "main";
-    vertexInfo.format = SDL_GPU_SHADERFORMAT_SPIRV; //loading .spv shaders
-    vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX; // vertex shader
+    vertexInfo.format = SDL_GPU_SHADERFORMAT_SPIRV; // loading .spv shaders
+    vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;  // vertex shader
     vertexInfo.num_samplers = 0;
     vertexInfo.num_storage_buffers = 0;
     vertexInfo.num_storage_textures = 0;
@@ -198,16 +132,16 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     SDL_GPUVertexAttribute vertexAttributes[2];
 
     // a_position
-    vertexAttributes[0].buffer_slot = 0; // fetch data from the buffer at slot 0
-    vertexAttributes[0].location = 0; // layout (location = 0) in shader
+    vertexAttributes[0].buffer_slot = 0;                             // fetch data from the buffer at slot 0
+    vertexAttributes[0].location = 0;                                // layout (location = 0) in shader
     vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3; // vec3
-    vertexAttributes[0].offset = 0; // start from the first byte from the current buffer
+    vertexAttributes[0].offset = 0;                                  // start from the first byte from the current buffer
 
     // a_color
-    vertexAttributes[1].buffer_slot = 0; // use buffer at slot 0
-    vertexAttributes[1].location = 1; // layout (location = 1) in shader
+    vertexAttributes[1].buffer_slot = 0;                             // use buffer at slot 0
+    vertexAttributes[1].location = 1;                                // layout (location = 1) in shader
     vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4; // vec4
-    vertexAttributes[1].offset = sizeof(float) * 3; // 4th float from current buffer position
+    vertexAttributes[1].offset = sizeof(float) * 3;                  // 4th float from current buffer position
 
     pipelineInfo.vertex_input_state.num_vertex_attributes = 2;
     pipelineInfo.vertex_input_state.vertex_attributes = vertexAttributes;
@@ -248,16 +182,9 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
     Uint64 perfCounterNow = SDL_GetPerformanceCounter();
-    double fps = (double)perfFrequency / (double)(perfCounterNow - perfCounterPrev);
-    double elapsed = 1.0f / fps;
+    double elapsed = (double)(perfCounterNow - perfCounterPrev) / (double)perfFrequency;
     perfCounterPrev = perfCounterNow;
-    elapsedTime += elapsed;
     time += (float)elapsed;
-
-    if (elapsedTime >= 0.5) {
-        SDL_Log("\033[2J\033[HFPS: %lf", fps);
-        elapsedTime = 0;
-    }
 
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
 
@@ -270,7 +197,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     }
 
     SDL_GPUColorTargetInfo colorTargetInfo = {0};
-    colorTargetInfo.clear_color = (SDL_FColor){255/255.0f, 219/255.0f, 187/255.0f, 255/255.0f};
+    colorTargetInfo.clear_color = (SDL_FColor){255 / 255.0f, 219 / 255.0f, 187 / 255.0f, 255 / 255.0f};
     colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
     colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
     colorTargetInfo.texture = swapchainTexture;
@@ -284,7 +211,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     // bind the vertex buffer
     SDL_GPUBufferBinding bufferBindings[1];
     bufferBindings[0].buffer = vertexBuffer; // index 0 is slot 0 in this example
-    bufferBindings[0].offset = 0; // start from the first byte
+    bufferBindings[0].offset = 0;            // start from the first byte
 
     SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, 1); // bind one buffer starting from slot 0
 
@@ -314,10 +241,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     // Release buffers since they are no longer needed
     SDL_ReleaseGPUBuffer(device, vertexBuffer);
-    //SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+    // SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
 
     SDL_ReleaseGPUBuffer(device, indexBuffer);
-    //SDL_ReleaseGPUTransferBuffer(device, transferBuffer2);
+    // SDL_ReleaseGPUTransferBuffer(device, transferBuffer2);
 
     // release the pipeline
     SDL_ReleaseGPUGraphicsPipeline(device, graphicsPipeline);
