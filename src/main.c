@@ -2,6 +2,7 @@
 #include "GPUBuffers.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <glslang/Include/glslang_c_interface.h>
 
 typedef struct Vertex {
     float x, y, z;
@@ -30,10 +31,8 @@ SDL_GPUDevice* device = NULL;
 SDL_GPUGraphicsPipeline* graphicsPipeline = NULL;
 
 SDL_GPUBuffer* vertexBuffer = NULL;
-SDL_GPUTransferBuffer* transferBuffer = NULL;
 
 SDL_GPUBuffer* indexBuffer = NULL;
-SDL_GPUTransferBuffer* transferBuffer2 = NULL;
 
 Uint64 perfFrequency;
 Uint64 perfCounterPrev;
@@ -60,7 +59,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     SDL_ClaimWindowForGPUDevice(device, window);
 
-    GPB_set_device(device);
+    GPB_init(device);
 
     // Create the vertex and index buffers
     vertexBuffer = GPB_create_buffer(SDL_GPU_BUFFERUSAGE_VERTEX, vertices, sizeof(vertices));
@@ -239,6 +238,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    GPB_terminate();
+
     // Release buffers since they are no longer needed
     SDL_ReleaseGPUBuffer(device, vertexBuffer);
     // SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
