@@ -3,8 +3,8 @@
 
 #include <SDL3/SDL.h>
 
-// A reference to an externally created gpu device to be used as an 
-// internal handle to the device itself to simplify the use of the 
+// A reference to an externally created gpu device to be used as an
+// internal handle to the device itself to simplify the use of the
 // functions
 static SDL_GPUDevice* gpb_device;
 
@@ -17,8 +17,15 @@ typedef struct GPBUploadBuffer {
     bool available;
 } GPBUploadBuffer;
 
-#define GPB_MAX_TRANSFER_BUFFERS 40
-static GPBUploadBuffer uploadTransferBuffers[GPB_MAX_TRANSFER_BUFFERS] = {0};
+// Defines the possible sizes of the transfer buffers, with each size being
+// allocated 4 transfer buffers each
+// Note: these sizees should definitely be updated later
+static Uint32 transferBufferBinSizes[] = {6400, 64000, 256000};
+#define TRANSFER_BUFFER_BIN_LEN sizeof(transferBufferBinSizes) / sizeof(transferBufferBinSizes[0])
+#define TRANSFER_BUFFER_BIN_SPAN 4
+
+// The actual array of transfer buffers (will be of size TRANSFER_BUFFER_BIN_LEN * TRANSFER_BUFFER_BIN_SPAN)
+static GPBUploadBuffer* uploadTransferBuffers;
 static Uint32 uploadTransferBuffersSize = 0;
 
 // For use with the stack to store information relavent to the copy pass

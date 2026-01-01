@@ -3,23 +3,26 @@
 
 void GPB_init(SDL_GPUDevice* dev) {
     gpb_device = dev;
+    uploadTransferBuffers = SDL_malloc((TRANSFER_BUFFER_BIN_LEN * TRANSFER_BUFFER_BIN_SPAN) * sizeof(GPBUploadBuffer));
 
-    // Some good base sizes to start with (the sizes are in bytes)
-    const Uint32 base_sizes[] = {
-        6400, 6400, 6400, 6400,
-        64000, 64000, 64000, 64000,
-        256000, 256000, 256000, 256000};
-    for (int i = 0; i < 3; i++) {
-        uploadTransferBuffers[uploadTransferBuffersSize] = (GPBUploadBuffer){
-            .utb = SDL_CreateGPUTransferBuffer(
-                gpb_device,
-                &(SDL_GPUTransferBufferCreateInfo){
-                    .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-                    .size = base_sizes[i],
-                    .props = 0}),
-            .size = base_sizes[i],
-            .available = true};
-        uploadTransferBuffersSize++;
+    if (uploadTransferBuffers == NULL) {
+        SDL_Log("GPUBuffers.c: Failed to allocate memory for the upload transfer buffers.");
+        SDL_Quit();
+        exit(-1);
+    }
+
+    for (int i = 0; i < TRANSFER_BUFFER_BIN_LEN; i++) {
+        for (int j = 0; j < TRANSFER_BUFFER_BIN_SPAN; j++) {
+            uploadTransferBuffers[(i * TRANSFER_BUFFER_BIN_SPAN) + j] = (GPBUploadBuffer){
+                .utb = SDL_CreateGPUTransferBuffer(
+                    gpb_device,
+                    &(SDL_GPUTransferBufferCreateInfo){
+                        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+                        .size = transferBufferBinSizes[i],
+                        .props = 0}),
+                .available = true,
+                .size = transferBufferBinSizes[i]};
+        }
     }
 }
 
@@ -40,8 +43,6 @@ SDL_GPUBuffer* GPB_create_buffer(Uint8 type, void* data, Uint32 size) {
 
     // Create the transfer buffer for getting the data to the gpu buffer
     GPBUploadBuffer* tb = GPB_get_transfer_buffer(size);
-    // Indicate that the buffer is no longer available (helps prevent accidental overwriting of buffers)
-    tb->available = false;
 
     // Fill the transfer buffer with data by mapping it to a pointer
     void* tb_data = SDL_MapGPUTransferBuffer(gpb_device, tb->utb, false);
@@ -62,8 +63,7 @@ SDL_GPUBuffer* GPB_create_buffer(Uint8 type, void* data, Uint32 size) {
     GPB_push_uinfo(&(upload_info){
         .location = location,
         .region = region,
-        .buffer = tb
-    });
+        .buffer = tb});
 
     return buffer;
 }
@@ -113,28 +113,45 @@ int GPB_submit_all_transfer_buffers(void) {
 
 GPBUploadBuffer* GPB_get_transfer_buffer(Uint32 size) {
     GPBUploadBuffer* tb = NULL;
-    for (int i = 0; i < uploadTransferBuffersSize && i < GPB_MAX_TRANSFER_BUFFERS; i++) {
-        if (size <= uploadTransferBuffers[i].size && uploadTransferBuffers[i].available == true) {
-            tb = &uploadTransferBuffers[i];
-            break;
+
+    // Calculate the offset into the correct size
+    int offset = -1;
+    for (int i = 0; i < TRANSFER_BUFFER_BIN_LEN; i++) {
+        if (size <= transferBufferBinSizes[i]) {
+            offset = i * TRANSFER_BUFFER_BIN_SPAN;
         }
     }
 
-    if (tb == NULL && uploadTransferBuffersSize < GPB_MAX_TRANSFER_BUFFERS) {
-        uploadTransferBuffers[uploadTransferBuffersSize] = (GPBUploadBuffer){
-            .utb = SDL_CreateGPUTransferBuffer(
-                gpb_device,
-                &(SDL_GPUTransferBufferCreateInfo){
-                    .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-                    .size = size,
-                    .props = 0}),
-            .size = size};
-        tb = &uploadTransferBuffers[uploadTransferBuffersSize];
-        uploadTransferBuffersSize++;
-    } else if (tb == NULL && uploadTransferBuffersSize >= GPB_MAX_TRANSFER_BUFFERS) {
-        SDL_Log("Ran out of slots for more transfer buffers\n");
+    // Check to make sure that it actually fit into one of the transfer buffer categories
+    if (offset == -1) {
+        SDL_Log("GPUBuffers: GPB_get_transfer_buffer was given a size larger than the specified bin sizes\n");
         SDL_Quit();
         exit(-1);
+    }
+
+    int escape_con = 0;
+search_again:
+    // Find the first available transfer buffer in that range, if there is one available at all
+    for (int i = offset; i < offset + TRANSFER_BUFFER_BIN_SPAN; i++) {
+        if (uploadTransferBuffers[i].available == true) {
+            tb = &uploadTransferBuffers[i];
+        }
+    }
+    // Indicate that the buffer is no longer available (helps prevent accidental overwriting of buffers)
+    tb->available = false;
+    
+    if (tb == NULL) {
+        // If no slots of the specified size are available, it will submit everything that is already in the queue
+        GPB_submit_all_transfer_buffers();
+
+        if (escape_con == 0) {
+            goto search_again;
+            escape_con++;
+        } else {
+            SDL_Log("GPUBuffers.c: Infinite loop would have been entered\n");
+            SDL_Quit();
+            exit(-1);
+        }
     }
 
     return tb;
