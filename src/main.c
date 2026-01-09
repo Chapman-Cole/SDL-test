@@ -2,7 +2,6 @@
 #include "GPUBuffers.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#include <glslang/Include/glslang_c_interface.h>
 
 typedef struct Vertex {
     float x, y, z;
