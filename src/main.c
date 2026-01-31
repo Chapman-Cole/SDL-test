@@ -2,6 +2,9 @@
 #include "GPUBuffers.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include "SDLDevice.h"
+#include "Shader.h"
+#include "Strings.h"
 #include <glslang/Include/glslang_c_interface.h>
 
 typedef struct Vertex {
@@ -59,7 +62,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     SDL_ClaimWindowForGPUDevice(device, window);
 
-    GPB_init(device);
+    // Set the sdl gpu device for all modules, and initialize gpb (gpu buffers)
+    set_SDL_gpu_device(device);
+    GPB_init();
 
     // Create the vertex and index buffers
     vertexBuffer = GPB_create_buffer(SDL_GPU_BUFFERUSAGE_VERTEX, vertices, sizeof(vertices));
@@ -67,24 +72,25 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     GPB_submit_all_transfer_buffers();
 
     // Load the vertex shader code
-    size_t vertexCodeSize;
-    void* vertexCode = SDL_LoadFile("../shaders/vertex.spv", &vertexCodeSize);
+    //size_t vertexCodeSize;
+    //void* vertexCode = SDL_LoadFile("../shaders/vertex.spv", &vertexCodeSize);
 
     // Create the vertex shader
-    SDL_GPUShaderCreateInfo vertexInfo = {0};
-    vertexInfo.code = (Uint8*)vertexCode; // Convert to an array of bytes
-    vertexInfo.code_size = vertexCodeSize;
-    vertexInfo.entrypoint = "main";
-    vertexInfo.format = SDL_GPU_SHADERFORMAT_SPIRV; // loading .spv shaders
-    vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;  // vertex shader
-    vertexInfo.num_samplers = 0;
-    vertexInfo.num_storage_buffers = 0;
-    vertexInfo.num_storage_textures = 0;
-    vertexInfo.num_uniform_buffers = 1;
-    SDL_GPUShader* vertexShader = SDL_CreateGPUShader(device, &vertexInfo);
+    //SDL_GPUShaderCreateInfo vertexInfo = {0};
+    //vertexInfo.code = (Uint8*)vertexCode; // Convert to an array of bytes
+    //vertexInfo.code_size = vertexCodeSize;
+    //vertexInfo.entrypoint = "main";
+    //vertexInfo.format = SDL_GPU_SHADERFORMAT_SPIRV; // loading .spv shaders
+    //vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;  // vertex shader
+    //vertexInfo.num_samplers = 0;
+    //vertexInfo.num_storage_buffers = 0;
+    //vertexInfo.num_storage_textures = 0;
+    //vertexInfo.num_uniform_buffers = 1;
+    //SDL_GPUShader* vertexShader = SDL_CreateGPUShader(device, &vertexInfo);
+    SDL_GPUShader* vertexShader = create_vertex_shader(STRING("../shaders/vertex.glsl"), STRING("main"));
 
     // Free the file
-    SDL_free(vertexCode);
+    //SDL_free(vertexCode);
 
     // Load the fragment shader file
     size_t fragmentCodeSize;

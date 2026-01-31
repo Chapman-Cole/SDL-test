@@ -3,11 +3,6 @@
 
 #include <SDL3/SDL.h>
 
-// A reference to an externally created gpu device to be used as an
-// internal handle to the device itself to simplify the use of the
-// functions
-static SDL_GPUDevice* gpb_device;
-
 // Transfer buffers of set sizes will be cached and used for uploading data to the gpu for vertex buffers and
 // index buffers. If any of the pre-existing sizes are too small for the data requested to be uploaded, then a new
 // transfer buffer will be appended of the required size and cached for use later if neeeded
@@ -43,7 +38,7 @@ static Uint32 uploadStackMemsize = 1;
 // Must be called before using any of the following functions
 // sets the internal gpu device to whatever is passed into the function and sets up
 // the upload transfer buffer array with some of the default sizes
-void GPB_init(SDL_GPUDevice* dev);
+void GPB_init();
 
 // Must be called at the end of the program for proper de-initialization
 // the primary thing it does is free up transfer buffers

@@ -1,8 +1,8 @@
 #include "GPUBuffers.h"
 #include <stdlib.h>
+#include "SDLDevice.h"
 
-void GPB_init(SDL_GPUDevice* dev) {
-    gpb_device = dev;
+void GPB_init() {
     uploadTransferBuffers = SDL_malloc((TRANSFER_BUFFER_BIN_LEN * TRANSFER_BUFFER_BIN_SPAN) * sizeof(GPBUploadBuffer));
 
     if (uploadTransferBuffers == NULL) {
@@ -15,7 +15,7 @@ void GPB_init(SDL_GPUDevice* dev) {
         for (int j = 0; j < TRANSFER_BUFFER_BIN_SPAN; j++) {
             uploadTransferBuffers[(i * TRANSFER_BUFFER_BIN_SPAN) + j] = (GPBUploadBuffer){
                 .utb = SDL_CreateGPUTransferBuffer(
-                    gpb_device,
+                    get_SDL_gpu_device(),
                     &(SDL_GPUTransferBufferCreateInfo){
                         .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
                         .size = transferBufferBinSizes[i],
@@ -28,14 +28,14 @@ void GPB_init(SDL_GPUDevice* dev) {
 
 void GPB_terminate(void) {
     for (int i = 0; i < uploadTransferBuffersSize; i++) {
-        SDL_ReleaseGPUTransferBuffer(gpb_device, uploadTransferBuffers[i].utb);
+        SDL_ReleaseGPUTransferBuffer(get_SDL_gpu_device(), uploadTransferBuffers[i].utb);
     }
 }
 
 SDL_GPUBuffer* GPB_create_buffer(Uint8 type, void* data, Uint32 size) {
     // Create the gpu buffer
     SDL_GPUBuffer* buffer = SDL_CreateGPUBuffer(
-        gpb_device,
+        get_SDL_gpu_device(),
         &(SDL_GPUBufferCreateInfo){
             .usage = type,
             .size = size,
@@ -45,9 +45,9 @@ SDL_GPUBuffer* GPB_create_buffer(Uint8 type, void* data, Uint32 size) {
     GPBUploadBuffer* tb = GPB_get_transfer_buffer(size);
 
     // Fill the transfer buffer with data by mapping it to a pointer
-    void* tb_data = SDL_MapGPUTransferBuffer(gpb_device, tb->utb, false);
+    void* tb_data = SDL_MapGPUTransferBuffer(get_SDL_gpu_device(), tb->utb, false);
     SDL_memcpy(tb_data, data, size);
-    SDL_UnmapGPUTransferBuffer(gpb_device, tb->utb);
+    SDL_UnmapGPUTransferBuffer(get_SDL_gpu_device(), tb->utb);
 
     // Find where the data is
     SDL_GPUTransferBufferLocation location = {0};
@@ -96,7 +96,7 @@ int GPB_pop_uinfo(void) {
 
 int GPB_submit_all_transfer_buffers(void) {
     // Start a copy pass to get the data in the transfer buffer to the gpu buffers
-    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(gpb_device);
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
     SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
 
     for (int i = uploadStackSize - 1; i >= 0; i--) {
