@@ -30,6 +30,9 @@ void GPB_terminate(void) {
     for (int i = 0; i < uploadTransferBuffersSize; i++) {
         SDL_ReleaseGPUTransferBuffer(get_SDL_gpu_device(), uploadTransferBuffers[i].utb);
     }
+
+    SDL_free(uploadTransferBuffers);
+    SDL_free(uploadStack);
 }
 
 SDL_GPUBuffer* GPB_create_buffer(Uint8 type, void* data, Uint32 size) {
