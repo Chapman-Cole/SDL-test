@@ -6,6 +6,7 @@
 #include "Shader.h"
 #include "Strings.h"
 #include "GraphicsPipeline.h"
+#include <cglm/cglm.h>
 
 typedef struct Vertex {
     float x, y, z;
@@ -154,6 +155,13 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     params.u_scale = time;
     SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
     SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
+
+    mat4 trans;
+    glm_mat4_identity(trans);
+    glm_rotate(trans, time / 2.0f, (vec3){0.0f, 0.0f, 1.0f});
+    glm_scale(trans, (vec3){0.5, 0.5, 0.5});
+
+    SDL_PushGPUVertexUniformData(commandBuffer, 1, trans, sizeof(mat4));
 
     // issue a draw call
     // SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);

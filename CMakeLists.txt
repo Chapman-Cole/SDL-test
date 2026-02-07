@@ -25,6 +25,7 @@ add_executable(main src/main.c src/GPUBuffers.c src/Strings.c src/Shader.c src/S
 target_include_directories(main PRIVATE "include" ${shaderc_path})
 target_link_libraries(main PRIVATE
     stdc++
+    m
     glslang::glslang
     SDL3::SDL3
     ${shaderc_lib}
