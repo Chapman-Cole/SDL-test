@@ -5,6 +5,9 @@ find_package(SDL3 REQUIRED)
 find_package(Vulkan REQUIRED COMPONENTS glslang shaderc_combined)
 
 if(UNIX)
+    # On arch linux I have to link to the glslang package separately for it to work
+    find_package(glslang REQUIRED)
+
     # Right now the required external libraries are SDL3, shaderc, and glslang (this is a dependency of shaderc)
     # Shaderc generally does not come with a package, so it is necessary to use the find_library and find_path function unfortunately
     find_library(shaderc_lib NAMES shaderc_combined PATHS /usr/lib)
@@ -27,7 +30,7 @@ if(UNIX)
     target_link_libraries(main PRIVATE
         stdc++
         m
-        Vulkan::glslang
+        glslang::glslang
         SDL3::SDL3
         ${shaderc_lib}
     )
