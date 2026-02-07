@@ -5,7 +5,7 @@
 #include "SDLDevice.h"
 #include "Shader.h"
 #include "Strings.h"
-#include <glslang/Include/glslang_c_interface.h>
+#include "GraphicsPipeline.h"
 
 typedef struct Vertex {
     float x, y, z;
@@ -74,83 +74,23 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     // Create the vertex shader
     SDL_GPUShader* vertexShader = create_vertex_shader(STRING("../shaders/vertex.glsl"), STRING("main"));
 
-    // Load the fragment shader file
-    size_t fragmentCodeSize;
-    void* fragmentCode = SDL_LoadFile("../shaders/fragment.spv", &fragmentCodeSize);
-
     // Create the fragment shader
-    SDL_GPUShaderCreateInfo fragmentInfo = {0};
-    fragmentInfo.code = (Uint8*)fragmentCode;
-    fragmentInfo.code_size = fragmentCodeSize;
-    fragmentInfo.entrypoint = "main";
-    fragmentInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-    fragmentInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-    fragmentInfo.num_samplers = 0;
-    fragmentInfo.num_storage_buffers = 0;
-    fragmentInfo.num_storage_textures = 0;
-    fragmentInfo.num_uniform_buffers = 1;
+    SDL_GPUShader* fragmentShader = create_fragment_shader(STRING("../shaders/fragment.glsl"), STRING("main"));
 
-    SDL_GPUShader* fragmentShader = SDL_CreateGPUShader(device, &fragmentInfo);
+    GraphicsPipelineFactory pipelineFactory;
+    graphics_pipeline_factory_init(&pipelineFactory);
 
-    // Free the file
-    SDL_free(fragmentCode);
+    // Setup the graphics pipeline parameters
+    graphics_pipeline_factory_set_shaders(&pipelineFactory, vertexShader, fragmentShader);
+    graphics_pipeline_factory_append_vertex_buffer_description(&pipelineFactory, SDL_GPU_VERTEXINPUTRATE_VERTEX, sizeof(Vertex));
+    graphics_pipeline_factory_append_vertex_atribute(&pipelineFactory, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
+    graphics_pipeline_factory_append_vertex_atribute(&pipelineFactory, 0, 1, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4, sizeof(float) * 3);
+    graphics_pipeline_factory_append_color_target_description_default(&pipelineFactory, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), window));
+    graphicsPipeline = graphics_pipeline_factory_generate_pipeline(&pipelineFactory);
 
-    // Begin the creation of the graphics pipeline
-    SDL_GPUGraphicsPipelineCreateInfo pipelineInfo = {0};
+    graphics_pipeline_factory_destroy(&pipelineFactory);
 
-    // bind the shaders
-    pipelineInfo.vertex_shader = vertexShader;
-    pipelineInfo.fragment_shader = fragmentShader;
-
-    // draw triangles as the primitive type
-    pipelineInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-
-    // describe the vertex buffers
-    SDL_GPUVertexBufferDescription vertexBufferDescriptions[1];
-    vertexBufferDescriptions[0].slot = 0;
-    vertexBufferDescriptions[0].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-    vertexBufferDescriptions[0].instance_step_rate = 0;
-    vertexBufferDescriptions[0].pitch = sizeof(Vertex);
-
-    pipelineInfo.vertex_input_state.num_vertex_buffers = 1;
-    pipelineInfo.vertex_input_state.vertex_buffer_descriptions = vertexBufferDescriptions;
-
-    // describe the vertex attribute
-    SDL_GPUVertexAttribute vertexAttributes[2];
-
-    // a_position
-    vertexAttributes[0].buffer_slot = 0;                             // fetch data from the buffer at slot 0
-    vertexAttributes[0].location = 0;                                // layout (location = 0) in shader
-    vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3; // vec3
-    vertexAttributes[0].offset = 0;                                  // start from the first byte from the current buffer
-
-    // a_color
-    vertexAttributes[1].buffer_slot = 0;                             // use buffer at slot 0
-    vertexAttributes[1].location = 1;                                // layout (location = 1) in shader
-    vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4; // vec4
-    vertexAttributes[1].offset = sizeof(float) * 3;                  // 4th float from current buffer position
-
-    pipelineInfo.vertex_input_state.num_vertex_attributes = 2;
-    pipelineInfo.vertex_input_state.vertex_attributes = vertexAttributes;
-
-    // describe the color target
-    SDL_GPUColorTargetDescription colorTargetDescriptions[1];
-    colorTargetDescriptions[0] = (SDL_GPUColorTargetDescription){0};
-    colorTargetDescriptions[0].blend_state.enable_blend = true;
-    colorTargetDescriptions[0].blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
-    colorTargetDescriptions[0].blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
-    colorTargetDescriptions[0].blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
-    colorTargetDescriptions[0].blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
-    colorTargetDescriptions[0].blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
-    colorTargetDescriptions[0].blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
-    colorTargetDescriptions[0].format = SDL_GetGPUSwapchainTextureFormat(device, window);
-
-    pipelineInfo.target_info.num_color_targets = 1;
-    pipelineInfo.target_info.color_target_descriptions = colorTargetDescriptions;
-
-    graphicsPipeline = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
-
-    SDL_ReleaseGPUShader(device, vertexShader);
+    SDL_ReleaseGPUShader(device, vertexShader); 
     SDL_ReleaseGPUShader(device, fragmentShader);
 
     // Disable vsync
