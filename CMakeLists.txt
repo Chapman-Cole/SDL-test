@@ -25,7 +25,7 @@ if(UNIX)
         message(FATAL_ERROR "Could not find shaderc include path")
     endif()
 
-    add_executable(main src/main.c src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c)
+    add_executable(main src/main.c src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c src/MeshObject.c)
     target_include_directories(main PRIVATE "include" ${shaderc_path})
     target_link_libraries(main PRIVATE
         stdc++
@@ -35,7 +35,7 @@ if(UNIX)
         ${shaderc_lib}
     )
 elseif(WIN32)
-    add_executable(main src/main.c src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c)
+    add_executable(main src/main.c src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c src/MeshObject.c)
     
     find_path(cglm_path NAMES cglm PATHS C:/ProgrammingUtils/cglm-0.9.6/include)
     if(cglm_path)

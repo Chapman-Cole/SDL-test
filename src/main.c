@@ -1,42 +1,25 @@
 #define SDL_MAIN_USE_CALLBACKS 1
 #include "GPUBuffers.h"
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
+#include "GraphicsPipeline.h"
+#include "MeshObject.h"
 #include "SDLDevice.h"
 #include "Shader.h"
 #include "Strings.h"
-#include "GraphicsPipeline.h"
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 #include <cglm/cglm.h>
-
-typedef struct Vertex {
-    float x, y, z;
-    float r, g, b, a;
-} Vertex;
 
 typedef struct UniformParams {
     float u_scale;
     float pad[3]; // 16 bytes total
 } UniformParams;
 
-static Vertex vertices[] = {
-    {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, // Bottom left
-    {1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},  // Bottom right
-    {-1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},  // Top left
-    {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}    // Top right
-};
-
-static Uint16 indices[] = {
-    0, 1, 2,
-    1, 3, 2};
-
 SDL_Window* window = NULL;
 SDL_GPUDevice* device = NULL;
 
 SDL_GPUGraphicsPipeline* graphicsPipeline = NULL;
 
-SDL_GPUBuffer* vertexBuffer = NULL;
-
-SDL_GPUBuffer* indexBuffer = NULL;
+Mesh quadMesh;
 
 Uint64 perfFrequency;
 Uint64 perfCounterPrev;
@@ -67,9 +50,21 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     set_SDL_gpu_device(device);
     GPB_init();
 
-    // Create the vertex and index buffers
-    vertexBuffer = GPB_create_buffer(SDL_GPU_BUFFERUSAGE_VERTEX, vertices, sizeof(vertices));
-    indexBuffer = GPB_create_buffer(SDL_GPU_BUFFERUSAGE_INDEX, indices, sizeof(indices));
+    // Create the quad mesh
+    meshobject_init(&quadMesh);
+    meshobject_load_manual(&quadMesh,
+                           (float[]){
+                               -1.0f, -1.0f, 0.0f, // Bottom left
+                               1.0f, -1.0f, 0.0f,  // Bottom right
+                               -1.0f, 1.0f, 0.0f,  // Top left
+                               1.0f, 1.0f, 0.0f    // Top right
+                           },
+                           12 * sizeof(float),
+                           (Uint32[]){
+                               0, 1, 2,
+                               1, 3, 2},
+                           6 * sizeof(Uint32));
+
     GPB_submit_all_transfer_buffers();
 
     // Create the vertex shader
@@ -83,15 +78,14 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // Setup the graphics pipeline parameters
     graphics_pipeline_factory_set_shaders(&pipelineFactory, vertexShader, fragmentShader);
-    graphics_pipeline_factory_append_vertex_buffer_description(&pipelineFactory, SDL_GPU_VERTEXINPUTRATE_VERTEX, sizeof(Vertex));
+    graphics_pipeline_factory_append_vertex_buffer_description(&pipelineFactory, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
     graphics_pipeline_factory_append_vertex_atribute(&pipelineFactory, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
-    graphics_pipeline_factory_append_vertex_atribute(&pipelineFactory, 0, 1, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4, sizeof(float) * 3);
     graphics_pipeline_factory_append_color_target_description_default(&pipelineFactory, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), window));
     graphicsPipeline = graphics_pipeline_factory_generate_pipeline(&pipelineFactory);
 
     graphics_pipeline_factory_destroy(&pipelineFactory);
 
-    SDL_ReleaseGPUShader(device, vertexShader); 
+    SDL_ReleaseGPUShader(device, vertexShader);
     SDL_ReleaseGPUShader(device, fragmentShader);
 
     // Disable vsync
@@ -136,20 +130,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     // bind the graphics pipeline
     SDL_BindGPUGraphicsPipeline(renderPass, graphicsPipeline);
 
-    // bind the vertex buffer
-    SDL_GPUBufferBinding bufferBindings[1];
-    bufferBindings[0].buffer = vertexBuffer; // index 0 is slot 0 in this example
-    bufferBindings[0].offset = 0;            // start from the first byte
-
-    SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, 1); // bind one buffer starting from slot 0
-
-    // bind the index buffer
-    SDL_GPUBufferBinding bufferBindings2;
-    bufferBindings2.buffer = indexBuffer;
-    bufferBindings2.offset = 0;
-
-    SDL_BindGPUIndexBuffer(renderPass, &bufferBindings2, SDL_GPU_INDEXELEMENTSIZE_16BIT);
-
     // Pass data to the uniform
     UniformParams params = {0};
     params.u_scale = time;
@@ -163,9 +143,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     SDL_PushGPUVertexUniformData(commandBuffer, 1, trans, sizeof(mat4));
 
-    // issue a draw call
-    // SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
-    SDL_DrawGPUIndexedPrimitives(renderPass, 6, 1, 0, 0, 0);
+    meshobject_render(&quadMesh, renderPass);
 
     // End the render pass before submitting the command buffer
     SDL_EndGPURenderPass(renderPass);
@@ -176,12 +154,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     GPB_terminate();
 
-    // Release buffers since they are no longer needed
-    SDL_ReleaseGPUBuffer(device, vertexBuffer);
-    // SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
-
-    SDL_ReleaseGPUBuffer(device, indexBuffer);
-    // SDL_ReleaseGPUTransferBuffer(device, transferBuffer2);
+    meshobject_destroy(&quadMesh);
 
     // release the pipeline
     SDL_ReleaseGPUGraphicsPipeline(device, graphicsPipeline);
