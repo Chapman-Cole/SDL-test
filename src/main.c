@@ -14,12 +14,19 @@ typedef struct UniformParams {
     float pad[3]; // 16 bytes total
 } UniformParams;
 
+typedef struct ColorParams {
+    SDL_FColor col1;
+    SDL_FColor col2;
+    SDL_FColor col3;
+} ColorParams;
+
 SDL_Window* window = NULL;
 SDL_GPUDevice* device = NULL;
 
 SDL_GPUGraphicsPipeline* graphicsPipeline = NULL;
 
 Mesh quadMesh;
+Mesh quadMesh2;
 
 Uint64 perfFrequency;
 Uint64 perfCounterPrev;
@@ -52,18 +59,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // Create the quad mesh
     meshobject_init(&quadMesh);
-    meshobject_load_manual(&quadMesh,
-                           (float[]){
-                               -1.0f, -1.0f, 0.0f, // Bottom left
-                               1.0f, -1.0f, 0.0f,  // Bottom right
-                               -1.0f, 1.0f, 0.0f,  // Top left
-                               1.0f, 1.0f, 0.0f    // Top right
-                           },
-                           12 * sizeof(float),
-                           (Uint32[]){
-                               0, 1, 2,
-                               1, 3, 2},
-                           6 * sizeof(Uint32));
+    meshobject_load_objfile(&quadMesh, STRING("../objects/StarWars.obj"));
+
+    meshobject_init(&quadMesh2);
+    meshobject_load_objfile(&quadMesh2, STRING("../objects/Quad.obj"));
 
     GPB_submit_all_transfer_buffers();
 
@@ -136,13 +135,29 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
     SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
 
-    mat4 trans;
-    glm_mat4_identity(trans);
-    glm_rotate(trans, time / 2.0f, (vec3){0.0f, 0.0f, 1.0f});
-    glm_scale(trans, (vec3){0.5, 0.5, 0.5});
+    //mat4 trans;
+    //glm_mat4_identity(trans);
+    //glm_rotate(trans, time / 2.0f, (vec3){0.0f, 0.0f, 1.0f});
+    //glm_scale(trans, (vec3){0.5, 0.5, 0.5});
 
-    SDL_PushGPUVertexUniformData(commandBuffer, 1, trans, sizeof(mat4));
+    //SDL_PushGPUVertexUniformData(commandBuffer, 1, trans, sizeof(mat4));
 
+    SDL_PushGPUFragmentUniformData(commandBuffer, 1, &(ColorParams){
+        .col1 = (SDL_FColor){255.0 / 255.0, 71.0 / 255.0, 76.0 / 255.0, 1.0},
+        .col2 = (SDL_FColor){255.0 / 255.0, 0.0 / 255.0, 0.0 / 255.0, 1.0},
+        .col3 = (SDL_FColor){153.0 / 255.0, 0.0 / 255.0, 0.0 / 255.0, 1.0}
+    },
+    sizeof(ColorParams)
+    );
+    meshobject_render(&quadMesh2, renderPass);
+
+    SDL_PushGPUFragmentUniformData(commandBuffer, 1, &(ColorParams){
+        .col1 = (SDL_FColor){3.0 / 255.0, 64.0 / 255.0, 120.0 / 255.0, 1.0},
+        .col2 = (SDL_FColor){0.0, 31 / 255.0, 84.0 / 255.0, 1.0},
+        .col3 = (SDL_FColor){10.0 / 255.0, 17.0 / 255.0, 40 / 255.0, 1.0}
+    },
+    sizeof(ColorParams)
+    );
     meshobject_render(&quadMesh, renderPass);
 
     // End the render pass before submitting the command buffer
@@ -155,6 +170,7 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     GPB_terminate();
 
     meshobject_destroy(&quadMesh);
+    meshobject_destroy(&quadMesh2);
 
     // release the pipeline
     SDL_ReleaseGPUGraphicsPipeline(device, graphicsPipeline);

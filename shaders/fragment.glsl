@@ -10,6 +10,12 @@ layout(set = 3, binding = 0) uniform Params
     vec3 _pad;
 } params;
 
+layout (set = 3, binding = 1) uniform Color {
+    vec4 col1;
+    vec4 col2;
+    vec4 col3;
+} color;
+
 #define PI 3.14159265359
 #define HALF_PI 1.57079632679
 #define TAU 6.28318530718
@@ -89,12 +95,20 @@ void main() {
 
     float perlin = (perlin1 + perlin2 + 1.5) / 3;
 
+    //if (perlin >= 0.52) {
+    //    FragColor = vec4(3.0 / 255.0, 64.0 / 255.0, 120.0 / 255.0, 1.0);
+    //} else if (perlin >= 0.48) {
+    //    FragColor = vec4(0.0, 31 / 255.0, 84.0 / 255.0, 1.0);
+    //} else {
+    //    FragColor = vec4(10.0 / 255.0, 17.0 / 255.0, 40 / 255.0, 1.0);
+    //}
+
     if (perlin >= 0.52) {
-        FragColor = vec4(3.0 / 255.0, 64.0 / 255.0, 120.0 / 255.0, 1.0);
+        FragColor = color.col1;
     } else if (perlin >= 0.48) {
-        FragColor = vec4(0.0, 31 / 255.0, 84.0 / 255.0, 1.0);
+        FragColor = color.col2;
     } else {
-        FragColor = vec4(10.0 / 255.0, 17.0 / 255.0, 40 / 255.0, 1.0);
+        FragColor = color.col3;
     }
 
     clamp(FragColor, 0.0, 1.0);

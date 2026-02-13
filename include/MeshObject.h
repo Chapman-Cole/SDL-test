@@ -19,7 +19,7 @@ typedef struct Mesh
     SDL_GPUBuffer* indexBuffer;
 
     // Needed to let SDL know how many 
-    // indices there are when rendering
+    // indices there are when rendering 
     Uint32 numIndices;
 } Mesh;
 
@@ -44,7 +44,7 @@ void meshobject_destroy(Mesh* mesh);
 void meshobject_load_manual(Mesh* mesh, float* vertices, Uint32 vertexSize, Uint32* indices, Uint32 indexSize);
 
 // Loads an obj file and extracts the vertex and index data to make the 
-// vertex and index buffers
+// vertex and index buffers. Assumes that the mesh object has already been initialized by the user
 void meshobject_load_objfile(Mesh* mesh, string path);
 
 // Binds the mesh data so it is prepped for rendering, and then renders it
