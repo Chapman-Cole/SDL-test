@@ -25,7 +25,7 @@ SDL_GPUDevice* device = NULL;
 
 SDL_GPUGraphicsPipeline* graphicsPipeline = NULL;
 
-Mesh quadMesh;
+//Mesh quadMesh;
 Mesh quadMesh2;
 
 Uint64 perfFrequency;
@@ -58,8 +58,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     GPB_init();
 
     // Create the quad mesh
-    meshobject_init(&quadMesh);
-    meshobject_load_objfile(&quadMesh, STRING("../objects/StarWars.obj"));
+    //meshobject_init(&quadMesh);
+    //meshobject_load_objfile(&quadMesh, STRING("../objects/StarWars.obj"));
 
     meshobject_init(&quadMesh2);
     meshobject_load_objfile(&quadMesh2, STRING("../objects/Quad.obj"));
@@ -151,14 +151,14 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     );
     meshobject_render(&quadMesh2, renderPass);
 
-    SDL_PushGPUFragmentUniformData(commandBuffer, 1, &(ColorParams){
-        .col1 = (SDL_FColor){3.0 / 255.0, 64.0 / 255.0, 120.0 / 255.0, 1.0},
-        .col2 = (SDL_FColor){0.0, 31 / 255.0, 84.0 / 255.0, 1.0},
-        .col3 = (SDL_FColor){10.0 / 255.0, 17.0 / 255.0, 40 / 255.0, 1.0}
-    },
-    sizeof(ColorParams)
-    );
-    meshobject_render(&quadMesh, renderPass);
+    //SDL_PushGPUFragmentUniformData(commandBuffer, 1, &(ColorParams){
+    //    .col1 = (SDL_FColor){3.0 / 255.0, 64.0 / 255.0, 120.0 / 255.0, 1.0},
+    //    .col2 = (SDL_FColor){0.0, 31 / 255.0, 84.0 / 255.0, 1.0},
+    //    .col3 = (SDL_FColor){10.0 / 255.0, 17.0 / 255.0, 40 / 255.0, 1.0}
+    //},
+    //sizeof(ColorParams)
+    //);
+    //meshobject_render(&quadMesh, renderPass);
 
     // End the render pass before submitting the command buffer
     SDL_EndGPURenderPass(renderPass);
@@ -169,7 +169,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     GPB_terminate();
 
-    meshobject_destroy(&quadMesh);
+    //meshobject_destroy(&quadMesh);
     meshobject_destroy(&quadMesh2);
 
     // release the pipeline

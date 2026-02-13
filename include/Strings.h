@@ -1,6 +1,7 @@
 #ifndef STRINGS_H
 #define STRINGS_H
 
+#include <SDL3./SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -26,7 +27,7 @@ inline void string_init(string* str) {
 
 // Call this function when ready to free the contents of the string, and prepare for future use
 inline void string_free(string* str) {
-    free(str->str);
+    SDL_free(str->str);
     *str = (string){.str = NULL, .len = 0, .__memsize = 1};
 }
 

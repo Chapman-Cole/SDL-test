@@ -90,7 +90,8 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
                 string_init(&vertexStr);
                 // indices[j] + 1 is because the indices point to the spaces and not the start of the number
                 string_substring(&vertexStr, &file, indices[j] + 1, indices[j+1]);
-                objVertices[objVerticesLen] = atof(vertexStr.str);
+                objVertices[objVerticesLen] = SDL_atof(vertexStr.str);
+                SDL_Log("%s\n", vertexStr.str);
                 objVerticesLen++;
                 string_free(&vertexStr);
             }
@@ -134,7 +135,7 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
                 string_init(&faceIndexStr);
                 // indices[j] + 1 is because the indices point to the spaces and not the start of the number
                 string_substring(&faceIndexStr, &file, indices[j] + 1, indices[j+1]);
-                faceIndices[faceIndicesCount] = atoi(faceIndexStr.str);
+                faceIndices[faceIndicesCount] = SDL_atoi(faceIndexStr.str);
                 faceIndicesCount++;
                 string_free(&faceIndexStr);
             }
@@ -176,15 +177,16 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
     mesh->numIndices = trianglesLen; 
 
     // Debug print statements are below
-    //SDL_Log("Vertices:\n");
-    //for (int i = 0; i < objVerticesLen; i += 3) {
-    //    SDL_Log("%f %f %f\n", objVertices[i], objVertices[i+1], objVertices[i+2]);
-    //}
+    SDL_Log("Vertices:\n");
+    for (int i = 0; i < objVerticesLen; i += 3) {
+        SDL_Log("%f %f %f\n", objVertices[i], objVertices[i+1], objVertices[i+2]);
+    }
 
-    //SDL_Log("Triangles:\n");
-    //for (int i = 0; i < trianglesLen; i += 3) {
-    //    SDL_Log("%d %d %d\n", triangles[i], triangles[i+1], triangles[i+2]);
-    //}
+    SDL_Log("Triangles:\n");
+    for (int i = 0; i < trianglesLen; i += 3) {
+        SDL_Log("%d %d %d\n", triangles[i], triangles[i+1], triangles[i+2]);
+    }
+    
 
     // Free up unused data
     SDL_free(objVertices);
