@@ -3,7 +3,7 @@
 #include "SDLDevice.h"
 
 void GPB_init() {
-    uploadTransferBuffers = SDL_malloc((TRANSFER_BUFFER_BIN_LEN * TRANSFER_BUFFER_BIN_SPAN) * sizeof(GPBUploadBuffer));
+    uploadTransferBuffers = (GPBUploadBuffer*)SDL_malloc((TRANSFER_BUFFER_BIN_LEN * TRANSFER_BUFFER_BIN_SPAN) * sizeof(GPBUploadBuffer));
 
     if (uploadTransferBuffers == NULL) {
         SDL_Log("GPUBuffers.c: Failed to allocate memory for the upload transfer buffers.");

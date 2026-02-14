@@ -1,4 +1,4 @@
-# The cmake module for finding the SDL3 libraries and packages
+# The cmake module responsible for finding the SDL3 libraries and packages
 
 find_package(SDL3)
 

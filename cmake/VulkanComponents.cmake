@@ -1,8 +1,7 @@
 # Cmake module responsible for finding glslang and shaderc_combined from the Vulkan package
 # or through other means if the package cannot be found using find_package()
 
-#find_package(Vulkan COMPONENTS glslang shaderc_combined)
-find_package(Vulkan)
+find_package(Vulkan COMPONENTS glslang shaderc_combined)
 
 if(Vulkan_FOUND)
     message(STATUS "Found Vulkan package")
@@ -26,6 +25,9 @@ else()
         if(glslang_path)
             message(STATUS "Found glslang path at ${glslang_path}")
             target_include_directories(main PRIVATE ${glslang_path})
+        else()
+            message(FATAL_ERROR "Could not fine glslang path")
+        endif()
     endif()
 
     find_library(shaderc_lib NAMES shaderc_combined PATHS /usr/lib C:/Users/chapmanc7563/Desktop/Vulkan/Lib)

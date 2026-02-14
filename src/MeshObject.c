@@ -21,6 +21,8 @@ void meshobject_load_manual(Mesh* mesh, float* vertices, Uint32 vertexSize, Uint
     mesh->numIndices = indexSize / sizeof(Uint32);
 }
 
+// TODO: Consider adding a custom function for calculating how much memory should increase for the vertices
+// and triangles arrays so it doesn't grow crazy quick. 
 void meshobject_load_objfile(Mesh* mesh, string path) {
     string file;
     string_init(&file);
@@ -74,7 +76,8 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
 
             // Make sure there is enough room to allocate memory
             if (objVerticesLen + 3 >= objVerticesMemsize) {
-                objVerticesMemsize *= 2;
+                // Memory has to grow fast enough to keep up with the number of vertices being added
+                objVerticesMemsize = (objVerticesLen + 3) * 2;
                 objVertices = (float*)SDL_realloc(objVertices, objVerticesMemsize * sizeof(float));
 
                 if (objVertices == NULL) {
@@ -85,13 +88,12 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
             }
 
             // Extract the vertices from the line
-            for (int j = 0; j < 3; j++) {
+            for (int j = 0; j < 3 && objVerticesLen < objVerticesMemsize; j++) {
                 string vertexStr;
                 string_init(&vertexStr);
                 // indices[j] + 1 is because the indices point to the spaces and not the start of the number
                 string_substring(&vertexStr, &file, indices[j] + 1, indices[j+1]);
                 objVertices[objVerticesLen] = SDL_atof(vertexStr.str);
-                SDL_Log("%s\n", vertexStr.str);
                 objVerticesLen++;
                 string_free(&vertexStr);
             }
@@ -111,16 +113,11 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
             }
 
             // Get the indices of the spaces. Save room for the \n index by doing FACE_VERTEX_MAX - 1
-            for (int j = i + 1; j < endLineIndex && indexCount < FACE_VERTEX_MAX; j++) {
+            for (int j = i + 1; j < endLineIndex && indexCount < FACE_VERTEX_MAX - 1; j++) {
                 if (file.str[j] == ' ') {
                     indices[indexCount] = j;
                     indexCount++;
                 }
-            }
-
-            if (indexCount >= FACE_VERTEX_MAX) {
-                SDL_Log("Face had to many vertices. Cannot exceed %d vertices per face.\n", FACE_VERTEX_MAX);
-                return;
             }
 
             indices[indexCount] = endLineIndex;
@@ -135,15 +132,23 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
                 string_init(&faceIndexStr);
                 // indices[j] + 1 is because the indices point to the spaces and not the start of the number
                 string_substring(&faceIndexStr, &file, indices[j] + 1, indices[j+1]);
-                faceIndices[faceIndicesCount] = SDL_atoi(faceIndexStr.str);
-                faceIndicesCount++;
+
+                if (faceIndicesCount < FACE_VERTEX_MAX) {
+                    faceIndices[faceIndicesCount] = SDL_atoi(faceIndexStr.str);
+                    faceIndicesCount++;
+                } else {
+                    SDL_Log("Maximum Face Indices of %d reached.", FACE_VERTEX_MAX);
+                    SDL_Quit();
+                    exit(-1);
+                }
                 string_free(&faceIndexStr);
             }
 
             // Make sure there is enough room to allocate memory
             // 3 * (faceIndicesCount - 2) is the number of floats being added, since there are 3 floats per triangle
             if (trianglesLen + 3 * (faceIndicesCount - 2) >= trianglesMemsize) {
-                trianglesMemsize *= 2;
+                // Memory has to grow fast enough to keep up with number of triangles being added
+                trianglesMemsize = (trianglesMemsize + 3 * (faceIndicesCount - 2)) * 2;
                 triangles = (Uint32*)SDL_realloc(triangles, trianglesMemsize * sizeof(float));
 
                 if (triangles == NULL) {
@@ -177,15 +182,15 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
     mesh->numIndices = trianglesLen; 
 
     // Debug print statements are below
-    SDL_Log("Vertices:\n");
-    for (int i = 0; i < objVerticesLen; i += 3) {
-        SDL_Log("%f %f %f\n", objVertices[i], objVertices[i+1], objVertices[i+2]);
-    }
+    //SDL_Log("Vertices:\n");
+    //for (int i = 0; i < objVerticesLen; i += 3) {
+    //    SDL_Log("%f %f %f\n", objVertices[i], objVertices[i+1], objVertices[i+2]);
+    //}
 
-    SDL_Log("Triangles:\n");
-    for (int i = 0; i < trianglesLen; i += 3) {
-        SDL_Log("%d %d %d\n", triangles[i], triangles[i+1], triangles[i+2]);
-    }
+    //SDL_Log("Triangles:\n");
+    //for (int i = 0; i < trianglesLen; i += 3) {
+    //    SDL_Log("%d %d %d\n", triangles[i], triangles[i+1], triangles[i+2]);
+    //}
     
 
     // Free up unused data
