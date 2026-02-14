@@ -5,7 +5,37 @@ find_package(Vulkan COMPONENTS glslang shaderc_combined)
 
 if(Vulkan_FOUND)
     message(STATUS "Found Vulkan package")
-    target_link_libraries(main PRIVATE Vulkan::glslang Vulkan::shaderc_combined)
+
+    if(UNIX)
+        # For Linux I get errors if I link directly with the Vulkan glslang package, so 
+        # I use the system glslang package instead
+        find_package(glslang)
+
+        if(glslang_FOUND)
+            message(STATUS "Found glslang package")
+            target_link_libraries(main PRIVATE glslang::glslang)
+        else()
+            find_library(glslang_lib NAMES glslang PATHS C:/Users/chapmanc7563/Desktop/Vulkan/Lib)
+            if(glslang_lib)
+                message(STATUS "Found glslang library at ${glslang_lib}")
+                target_link_libraries(main PRIVATE ${glslang_lib})
+            else()
+                message(FATAL_ERROR "Could not find glslang library")
+            endif()
+
+            find_path(glslang_path NAMES glslang PATHS C:/Users/chapmanc7563/Desktop/Vulkan/Include)
+            if(glslang_path)
+                message(STATUS "Found glslang path at ${glslang_path}")
+                target_include_directories(main PRIVATE ${glslang_path})
+            else()
+                message(FATAL_ERROR "Could not fine glslang path")
+            endif()
+        endif()
+
+        target_link_libraries(main PRIVATE Vulkan::shaderc_combined)
+    else()
+        target_link_libraries(main PRIVATE Vulkan::glslang Vulkan::shaderc_combined)
+    endif()
 else()
     find_package(glslang)
 

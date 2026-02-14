@@ -1,9 +1,12 @@
 #ifndef STRINGS_H
 #define STRINGS_H
 
-#include <SDL3./SDL.h>
+#include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
+#include <SDL3/SDL.h>
 
 typedef struct string {
     char* str;

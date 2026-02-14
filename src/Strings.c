@@ -1,8 +1,4 @@
 #include "Strings.h"
-#include <math.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
 
 
 extern void string_init(string* str);
