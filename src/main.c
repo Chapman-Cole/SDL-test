@@ -62,7 +62,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // Create the quad mesh
     meshobject_init(&quadMesh);
-    meshobject_load_objfile(&quadMesh, STRING("../objects/StarWars.obj"));
+    meshobject_load_objfile(&quadMesh, STRING("../objects/Sun.obj"));
 
     meshobject_init(&quadMesh2);
     meshobject_load_objfile(&quadMesh2, STRING("../objects/Quad.obj"));
