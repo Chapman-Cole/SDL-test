@@ -53,11 +53,15 @@ void get_shader_count_info(string file, SDL_GPUShaderCreateInfo* shaderInfo) {
     }
 }
 
-SDL_GPUShader* create_vertex_shader(string path, string entry_point) {
+SDL_GPUShader* create_vertex_shader(string path, string entry_point, bool treat_path_as_shader_source) {
     string file;
     string_init(&file);
 
-    string_read_file(&file, &path);
+    if (treat_path_as_shader_source) {
+        string_copy(&file, &path);
+    } else {
+        string_read_file(&file, &path);
+    }
 
     SDL_GPUShaderCreateInfo vertexInfo = {0};
     vertexInfo.entrypoint = entry_point.str;
@@ -100,11 +104,15 @@ SDL_GPUShader* create_vertex_shader(string path, string entry_point) {
     return vertexShader;
 }
 
-SDL_GPUShader* create_fragment_shader(string path, string entry_point) {
+SDL_GPUShader* create_fragment_shader(string path, string entry_point, bool treat_path_as_shader_source) {
     string file;
     string_init(&file);
 
-    string_read_file(&file, &path);
+    if (treat_path_as_shader_source) {
+        string_copy(&file, &path);
+    } else {
+        string_read_file(&file, &path);
+    }
 
     SDL_GPUShaderCreateInfo fragmentInfo = {0};
     fragmentInfo.entrypoint = entry_point.str;

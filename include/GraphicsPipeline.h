@@ -2,6 +2,8 @@
 #define GRAPHICSPIPELINE_H
 
 #include <SDL3/SDL.h>
+#include "Strings.h"
+#include "Window.h"
 
 typedef struct GraphicsPipelineFactory {
     SDL_GPUShader* vertex_shader;
@@ -18,6 +20,18 @@ typedef struct GraphicsPipelineFactory {
     SDL_GPUColorTargetDescription* colorTargetDescriptions;
 } GraphicsPipelineFactory;
 
+// The name string is used so that it can be found by searching
+// with strings
+typedef struct GraphicsPipelineFactoryRegistryItem {
+    GraphicsPipelineFactory factory;
+    string name;
+} GraphicsPipelineFactoryRegistryItem;
+
+// A registry for created graphics pipelines so 
+static GraphicsPipelineFactoryRegistryItem* GraphicsPipelineFactoryRegistry;
+static Uint32 GraphicsPipelineFactoryRegistryLen = 0;
+static Uint32 GraphicsPipelineFactoryRegistryMemsize = 1;
+
 // Must be called directly after declaration of a graphics pipeline factory to 
 // properly initialize it
 void graphics_pipeline_factory_init(GraphicsPipelineFactory* factory);
@@ -26,9 +40,6 @@ void graphics_pipeline_factory_init(GraphicsPipelineFactory* factory);
 // finished with the graphics pipeline factory, which is usually after you have
 // fetched the actual SDL graphics pipeline from it
 void graphics_pipeline_factory_destroy(GraphicsPipelineFactory* factory);
-
-// Sets the vertex and fragment shader for the graphics pipeline factory
-void graphics_pipeline_factory_set_shaders(GraphicsPipelineFactory* factory, SDL_GPUShader* vertexShader, SDL_GPUShader* fragmentShader);
 
 // Sets the primitive type for the graphics pipeline factory
 void graphics_pipeline_factory_set_primitive_type(GraphicsPipelineFactory* factory, SDL_GPUPrimitiveType primType);
@@ -60,7 +71,23 @@ void graphics_pipeline_factory_append_color_target_description(GraphicsPipelineF
 // Format refers to the format of the pixel layout. This will usually end up being the result of calling SDL_GetGPUSwapchainTextureFormat()
 void graphics_pipeline_factory_append_color_target_description_default(GraphicsPipelineFactory* factory, SDL_GPUTextureFormat format);
 
+// Initializes the graphics pipeline factory registry. This will provide a default
+// graphics pipeline factory to be used for basic scenarios
+void graphics_pipeline_factory_registry_init(void);
+
+// Frees up memory related to the graphics pipeline factory registry
+void graphics_pipeline_factory_registry_terminate(void);
+
 // Returns the actual SDL graphics pipeline using the factory that was previously created
-SDL_GPUGraphicsPipeline* graphics_pipeline_factory_generate_pipeline(GraphicsPipelineFactory* factory);
+SDL_GPUGraphicsPipeline* graphics_pipeline_factory_generate_pipeline(GraphicsPipelineFactory* factory, SDL_GPUShader* vertexShader, SDL_GPUShader* fragmentShader);
+
+// Appends the specified factory to the registry with the given name
+void graphics_pipeline_factory_registry_append(GraphicsPipelineFactory* factory, string name);
+
+// Returns a pointer to the specified graphics pipeline in the registry
+GraphicsPipelineFactory* graphics_pipeline_factory_registry_get_handle(string name);
+
+// Generates an SDL_GPUGraphicsPipeline* from the registry
+SDL_GPUGraphicsPipeline* graphics_pipeline_factory_registry_generate_pipeline(string name, SDL_GPUShader* vertexShader, SDL_GPUShader* fragmentShader);
 
 #endif

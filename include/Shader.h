@@ -13,11 +13,11 @@ void set_shader_format(unsigned int shader_format);
 // The path string should point to a glsl file, and not a SPIR-V file
 // Plan: At some point add the ability to pass in a precompiled file with an additional file specifying the
 // number of uniforms, buffers, etc. to allow for precompilation benefits
-SDL_GPUShader* create_vertex_shader(string path, string entry_point);
+SDL_GPUShader* create_vertex_shader(string path, string entry_point, bool treat_path_as_shader_source);
 
 // The path string should point to a glsl file, and not a SPIR-V file
 // Operates very similar to the create_vertex_shader function, but for fragment shaders
-SDL_GPUShader* create_fragment_shader(string path, string entry_point);
+SDL_GPUShader* create_fragment_shader(string path, string entry_point, bool treat_path_as_shader_source);
 
 // Used as an internal function inside create_vertex_shader and create_fragment_shader to get the number
 // of uniforms and such

@@ -7,7 +7,8 @@ layout (location = 0) out vec4 FragColor;
 layout(set = 3, binding = 0) uniform Params
 {
     float time;
-    vec3 _pad;
+    float offset;
+    vec2 _pad;
 } params;
 
 layout (set = 3, binding = 1) uniform Color {
@@ -89,9 +90,9 @@ void main() {
 
     float addTime = 0.5 * (sin(5 * sqrt(position.x * position.x + position.y * position.y) - params.time) + 1.1);
 
-    float perlin1 = perlinNoise(position.xy * 5 - params.time * 0.5);
+    float perlin1 = perlinNoise(position.xy * 5 - params.offset * params.time * 0.5);
 
-    float perlin2 = 0.5 * perlinNoise(position.xy * 6 + params.time * 0.5);
+    float perlin2 = 0.5 * perlinNoise(position.xy * 6 + params.offset * params.time * 0.5);
 
     float perlin = (perlin1 + perlin2 + 1.5) / 3;
 

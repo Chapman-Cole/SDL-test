@@ -3,8 +3,6 @@
 #include <stdlib.h>
 
 void graphics_pipeline_factory_init(GraphicsPipelineFactory* factory) {
-    factory->vertex_shader = NULL;
-    factory->fragment_shader = NULL;
     factory->primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
 
     factory->vertexBufferDescriptionsLen = 0;
@@ -21,11 +19,6 @@ void graphics_pipeline_factory_destroy(GraphicsPipelineFactory* factory) {
     SDL_free(factory->vertexBufferDescriptions);
     SDL_free(factory->vertexAttributes);
     SDL_free(factory->colorTargetDescriptions);
-}
-
-void graphics_pipeline_factory_set_shaders(GraphicsPipelineFactory* factory, SDL_GPUShader* vertexShader, SDL_GPUShader* fragmentShader) {
-    factory->vertex_shader = vertexShader;
-    factory->fragment_shader = fragmentShader;
 }
 
 void graphics_pipeline_factory_set_primitive_type(GraphicsPipelineFactory* factory, SDL_GPUPrimitiveType primType) {
@@ -116,12 +109,12 @@ void graphics_pipeline_factory_append_color_target_description_default(GraphicsP
     factory->colorTargetDescriptionsLen++;
 }
 
-SDL_GPUGraphicsPipeline* graphics_pipeline_factory_generate_pipeline(GraphicsPipelineFactory* factory) {
+SDL_GPUGraphicsPipeline* graphics_pipeline_factory_generate_pipeline(GraphicsPipelineFactory* factory, SDL_GPUShader* vertexShader, SDL_GPUShader* fragmentShader) {
     SDL_GPUGraphicsPipelineCreateInfo pipelineInfo = {0};
 
     pipelineInfo = (SDL_GPUGraphicsPipelineCreateInfo){
-        .vertex_shader = factory->vertex_shader,
-        .fragment_shader = factory->fragment_shader,
+        .vertex_shader = vertexShader,
+        .fragment_shader = fragmentShader,
         .vertex_input_state = (SDL_GPUVertexInputState){
             .num_vertex_buffers = factory->vertexBufferDescriptionsLen,
             .vertex_buffer_descriptions = factory->vertexBufferDescriptions,
@@ -135,4 +128,69 @@ SDL_GPUGraphicsPipeline* graphics_pipeline_factory_generate_pipeline(GraphicsPip
     };
 
     return SDL_CreateGPUGraphicsPipeline(get_SDL_gpu_device(), &pipelineInfo);
+}
+
+void graphics_pipeline_factory_registry_init(void) {
+    GraphicsPipelineFactory pipelineFactory;
+    graphics_pipeline_factory_init(&pipelineFactory);
+
+    // Setup the graphics pipeline parameters
+    graphics_pipeline_factory_append_vertex_buffer_description(&pipelineFactory, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
+    graphics_pipeline_factory_append_vertex_atribute(&pipelineFactory, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
+    graphics_pipeline_factory_append_color_target_description_default(&pipelineFactory, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), get_SDL_main_window()));
+
+    graphics_pipeline_factory_registry_append(&pipelineFactory, STRING("default"));
+}
+
+void graphics_pipeline_factory_registry_terminate(void) {
+    // Free up the individual graphics pipelines
+    for (int i = 0; i < GraphicsPipelineFactoryRegistryLen; i++) {
+        graphics_pipeline_factory_destroy(&GraphicsPipelineFactoryRegistry[i].factory);
+    }
+
+    // The strings inside the graphics pipeline factory registry items should hopefully be constant, so
+    // there should be no need to free the individual string buffers. 
+    SDL_free(GraphicsPipelineFactoryRegistry);
+
+    GraphicsPipelineFactoryRegistryLen = 0;
+    GraphicsPipelineFactoryRegistryMemsize = 1;
+}
+
+void graphics_pipeline_factory_registry_append(GraphicsPipelineFactory* factory, string name) {
+    if (GraphicsPipelineFactoryRegistryLen + 1 >= GraphicsPipelineFactoryRegistryMemsize) {
+        GraphicsPipelineFactoryRegistryMemsize += 3;
+
+        GraphicsPipelineFactoryRegistry = SDL_realloc(GraphicsPipelineFactoryRegistry, GraphicsPipelineFactoryRegistryMemsize * sizeof(GraphicsPipelineFactory));
+
+        if (GraphicsPipelineFactoryRegistry == NULL) {
+            SDL_Log("Failed to allocate memory for graphics pipeline factory registry.\n");
+            SDL_Quit();
+            exit(-1);
+        }
+    }
+
+    GraphicsPipelineFactoryRegistry[GraphicsPipelineFactoryRegistryLen] = (GraphicsPipelineFactoryRegistryItem){
+        .factory = *factory,
+        .name = name
+    };
+
+    GraphicsPipelineFactoryRegistryLen++;
+}
+
+GraphicsPipelineFactory* graphics_pipeline_factory_registry_get_handle(string name) {
+    for (int i = 0; i < GraphicsPipelineFactoryRegistryLen; i++) {
+        if (string_compare(&name, &GraphicsPipelineFactoryRegistry[i].name)) {
+            return &GraphicsPipelineFactoryRegistry[i].factory;
+        }
+    }
+
+    return NULL;
+}
+
+SDL_GPUGraphicsPipeline* graphics_pipeline_factory_registry_generate_pipeline(string name, SDL_GPUShader* vertexShader, SDL_GPUShader* fragmentShader) {
+    return graphics_pipeline_factory_generate_pipeline(
+        graphics_pipeline_factory_registry_get_handle(name),
+        vertexShader,
+        fragmentShader
+    );
 }

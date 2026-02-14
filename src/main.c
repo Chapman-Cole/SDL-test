@@ -8,10 +8,12 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <cglm/cglm.h>
+#include "Window.h"
 
 typedef struct UniformParams {
     float u_scale;
-    float pad[3]; // 16 bytes total
+    float offset;
+    float pad[2]; // 16 bytes total
 } UniformParams;
 
 typedef struct ColorParams {
@@ -55,6 +57,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // Set the sdl gpu device for all modules, and initialize gpb (gpu buffers)
     set_SDL_gpu_device(device);
+    set_SDL_main_window(window);
     GPB_init();
 
     // Create the quad mesh
@@ -67,22 +70,14 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     GPB_submit_all_transfer_buffers();
 
     // Create the vertex shader
-    SDL_GPUShader* vertexShader = create_vertex_shader(STRING("../shaders/vertex.glsl"), STRING("main"));
+    SDL_GPUShader* vertexShader = create_vertex_shader(STRING("../shaders/vertex.glsl"), STRING("main"), false);
 
     // Create the fragment shader
-    SDL_GPUShader* fragmentShader = create_fragment_shader(STRING("../shaders/fragment.glsl"), STRING("main"));
+    SDL_GPUShader* fragmentShader = create_fragment_shader(STRING("../shaders/fragment.glsl"), STRING("main"), false);
 
-    GraphicsPipelineFactory pipelineFactory;
-    graphics_pipeline_factory_init(&pipelineFactory);
-
-    // Setup the graphics pipeline parameters
-    graphics_pipeline_factory_set_shaders(&pipelineFactory, vertexShader, fragmentShader);
-    graphics_pipeline_factory_append_vertex_buffer_description(&pipelineFactory, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
-    graphics_pipeline_factory_append_vertex_atribute(&pipelineFactory, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
-    graphics_pipeline_factory_append_color_target_description_default(&pipelineFactory, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), window));
-    graphicsPipeline = graphics_pipeline_factory_generate_pipeline(&pipelineFactory);
-
-    graphics_pipeline_factory_destroy(&pipelineFactory);
+    graphics_pipeline_factory_registry_init();
+    graphicsPipeline = graphics_pipeline_factory_registry_generate_pipeline(STRING("default"), vertexShader, fragmentShader);
+    graphics_pipeline_factory_registry_terminate();
 
     SDL_ReleaseGPUShader(device, vertexShader);
     SDL_ReleaseGPUShader(device, fragmentShader);
@@ -133,7 +128,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     UniformParams params = {0};
     params.u_scale = time;
     SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
-    SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
 
     //mat4 trans;
     //glm_mat4_identity(trans);
@@ -142,6 +136,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     //SDL_PushGPUVertexUniformData(commandBuffer, 1, trans, sizeof(mat4));
 
+    params.offset = 0.6f;
+    SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
     SDL_PushGPUFragmentUniformData(commandBuffer, 1, &(ColorParams){
         .col1 = (SDL_FColor){3.0 / 255.0, 64.0 / 255.0, 120.0 / 255.0, 1.0},
         .col2 = (SDL_FColor){0.0, 31 / 255.0, 84.0 / 255.0, 1.0},
@@ -151,6 +147,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     );
     meshobject_render(&quadMesh2, renderPass);
 
+    params.offset = -0.6f;
+    SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
     SDL_PushGPUFragmentUniformData(commandBuffer, 1, &(ColorParams){
         .col1 = (SDL_FColor){255.0 / 255.0, 71.0 / 255.0, 76.0 / 255.0, 1.0},
         .col2 = (SDL_FColor){255.0 / 255.0, 0.0 / 255.0, 0.0 / 255.0, 1.0},
