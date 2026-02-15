@@ -146,6 +146,7 @@ void graphics_pipeline_factory_registry_terminate(void) {
     // Free up the individual graphics pipelines
     for (int i = 0; i < GraphicsPipelineFactoryRegistryLen; i++) {
         graphics_pipeline_factory_destroy(&GraphicsPipelineFactoryRegistry[i].factory);
+        string_free(&GraphicsPipelineFactoryRegistry[i].name);
     }
 
     // The strings inside the graphics pipeline factory registry items should hopefully be constant, so
@@ -154,6 +155,7 @@ void graphics_pipeline_factory_registry_terminate(void) {
 
     GraphicsPipelineFactoryRegistryLen = 0;
     GraphicsPipelineFactoryRegistryMemsize = 1;
+    GraphicsPipelineFactoryRegistry = NULL;
 }
 
 void graphics_pipeline_factory_registry_append(GraphicsPipelineFactory* factory, string name) {
@@ -169,9 +171,13 @@ void graphics_pipeline_factory_registry_append(GraphicsPipelineFactory* factory,
         }
     }
 
+    // This ensures that the name string persists in memory
+    string heapName;
+    string_init(&heapName);
+    string_copy(&heapName, &name);
     GraphicsPipelineFactoryRegistry[GraphicsPipelineFactoryRegistryLen] = (GraphicsPipelineFactoryRegistryItem){
         .factory = *factory,
-        .name = name
+        .name = heapName
     };
 
     GraphicsPipelineFactoryRegistryLen++;

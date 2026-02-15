@@ -1,8 +1,14 @@
 #include "Strings.h"
 
 
-extern void string_init(string* str);
-extern void string_free(string* str);
+void string_init(string* str) {
+    *str = (string){.str = NULL, .len = 0, .__memsize = 1};
+}
+
+void string_free(string* str) {
+    SDL_free(str->str);
+    *str = (string){.str = NULL, .len = 0, .__memsize = 1};
+}
 
 // This implementation could definitely be better, but for now simply
 // exactly fitting the size of the buffer to the string is probably just fine

@@ -1,14 +1,22 @@
 #define SDL_MAIN_USE_CALLBACKS 1
+#include <SDL3/SDL_main.h>
+#include <SDL3/SDL.h>
 #include "GPUBuffers.h"
 #include "GraphicsPipeline.h"
 #include "MeshObject.h"
 #include "SDLDevice.h"
 #include "Shader.h"
 #include "Strings.h"
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #include <cglm/cglm.h>
 #include "Window.h"
+
+// For arch linux, use MANGOHUD=1 ./main to get fps info since something recently
+// changed about how SDL3 handles Vulkan hooks that breaks the normal usage of
+// mangohud. This could also be an issue with vulkan-icd-loader changes, as asan
+// has been flagging that recently
+
+// To compile with debug symbols on linux, do cmake -DCMAKE_BUILD_TYPE=Debug ..
+// For debug symbols on windows, cmake --build . --config Debug
 
 typedef struct UniformParams {
     float u_scale;
@@ -38,22 +46,22 @@ double elapsedTime = 0.0;
 float time = 0.0;
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
-    perfFrequency = SDL_GetPerformanceFrequency();
-    perfCounterPrev = SDL_GetPerformanceCounter();
-
-    window = SDL_CreateWindow("SDL-test App Window", 960, 540, SDL_WINDOW_RESIZABLE);
+    window = SDL_CreateWindow("SDL-test", 960, 540, SDL_WINDOW_RESIZABLE);
     if (window == NULL) {
         SDL_Log("Window Creation Failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_MSL, false, NULL);
+    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
     if (device == NULL) {
         SDL_Log("GPU device creation failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
     SDL_ClaimWindowForGPUDevice(device, window);
+
+    perfFrequency = SDL_GetPerformanceFrequency();
+    perfCounterPrev = SDL_GetPerformanceCounter();
 
     // Set the sdl gpu device for all modules, and initialize gpb (gpu buffers)
     set_SDL_gpu_device(device);
@@ -62,7 +70,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // Create the quad mesh
     meshobject_init(&quadMesh);
-    meshobject_load_objfile(&quadMesh, STRING("../objects/Sun.obj"));
+    meshobject_load_objfile(&quadMesh, STRING("../objects/StarWars.obj"));
 
     meshobject_init(&quadMesh2);
     meshobject_load_objfile(&quadMesh2, STRING("../objects/Quad.obj"));
@@ -77,7 +85,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     graphics_pipeline_factory_registry_init();
     graphicsPipeline = graphics_pipeline_factory_registry_generate_pipeline(STRING("default"), vertexShader, fragmentShader);
-    graphics_pipeline_factory_registry_terminate();
 
     SDL_ReleaseGPUShader(device, vertexShader);
     SDL_ReleaseGPUShader(device, fragmentShader);
@@ -165,6 +172,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    graphics_pipeline_factory_registry_terminate();
     GPB_terminate();
 
     meshobject_destroy(&quadMesh);

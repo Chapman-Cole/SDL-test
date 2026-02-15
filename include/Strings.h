@@ -24,15 +24,10 @@ typedef struct string {
 #define STRING(x) ((string){.str = (x), .len = sizeof(x) / sizeof(x[0]) - 1 /*Subtract one because the sizeof(x) would include the null terminator*/, .__memsize = -1})
 
 // Always call this before using a string for any other functions
-inline void string_init(string* str) {
-    *str = (string){.str = NULL, .len = 0, .__memsize = 1};
-}
+void string_init(string* str);
 
 // Call this function when ready to free the contents of the string, and prepare for future use
-inline void string_free(string* str) {
-    SDL_free(str->str);
-    *str = (string){.str = NULL, .len = 0, .__memsize = 1};
-}
+void string_free(string* str);
 
 // Resizes the string to the given value, which will cause data loss if the new
 // size is less than the old size
