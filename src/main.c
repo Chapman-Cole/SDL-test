@@ -70,7 +70,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // Create the quad mesh
     meshobject_init(&quadMesh);
-    meshobject_load_objfile(&quadMesh, STRING("../objects/StarWars.obj"));
+    meshobject_load_objfile(&quadMesh, STRING("../objects/Atom.obj"));
 
     meshobject_init(&quadMesh2);
     meshobject_load_objfile(&quadMesh2, STRING("../objects/Quad.obj"));
@@ -134,6 +134,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     // Pass data to the uniform
     UniformParams params = {0};
     params.u_scale = time;
+    params.offset = 0.1;
     SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
 
     //mat4 trans;
@@ -163,6 +164,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     },
     sizeof(ColorParams)
     );
+
+    params.u_scale = time;
+    params.offset = 0.8;
+    SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
     meshobject_render(&quadMesh, renderPass);
 
     // End the render pass before submitting the command buffer
