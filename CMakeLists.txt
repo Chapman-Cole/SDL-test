@@ -19,5 +19,5 @@ include(cmake/cglm.cmake)
 target_include_directories(main PRIVATE "include")
 
 # Enable for address sanitization
-target_compile_options(main PRIVATE -fsanitize=address)
-target_link_options(main PRIVATE -fsanitize=address)
+# target_compile_options(main PRIVATE -fsanitize=address)
+# target_link_options(main PRIVATE -fsanitize=address)

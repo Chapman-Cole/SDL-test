@@ -1,2 +1,0 @@
-interceptor_via_lib:libvulkan.so
-interceptor_via_lib:libSDL3.so
