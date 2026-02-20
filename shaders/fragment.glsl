@@ -4,11 +4,14 @@ layout (location = 0) in vec3 pos;
 
 layout (location = 0) out vec4 FragColor;
 
-layout(set = 3, binding = 0) uniform Params
-{
+layout (set = 3, binding = 0) uniform Params {
     float time;
     float offset;
-    vec2 _pad;
+    float xScaling;
+    int mode;
+    int shouldScaleX;
+    float rippleScale;
+    vec2 pad;
 } params;
 
 layout (set = 3, binding = 1) uniform Color {

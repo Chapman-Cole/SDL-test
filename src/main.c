@@ -21,7 +21,11 @@
 typedef struct UniformParams {
     float u_scale;
     float offset;
-    float pad[2]; // 16 bytes total
+    float xScaling;
+    int mode;
+    int shouldScaleX;
+    float rippleScale;
+    float pad[2];
 } UniformParams;
 
 typedef struct ColorParams {
@@ -45,7 +49,16 @@ double elapsedTime = 0.0;
 
 float time = 0.0;
 
+string RenderObjectPath;
+
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
+    string_init(&RenderObjectPath);
+    if (argc > 1) {
+        string_copy(&RenderObjectPath, &(string){.str = argv[1], .len = strlen(argv[1]), .__memsize = -1});
+    } else {
+        string_copy(&RenderObjectPath, &STRING("../objects/Flower.obj"));
+    }
+
     window = SDL_CreateWindow("SDL-test", 960, 540, SDL_WINDOW_RESIZABLE);
     if (window == NULL) {
         SDL_Log("Window Creation Failed: %s", SDL_GetError());
@@ -70,10 +83,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // Create the quad mesh
     meshobject_init(&quadMesh);
-    meshobject_load_objfile(&quadMesh, STRING("../objects/Atom.obj"));
+    meshobject_load_objfile(&quadMesh, RenderObjectPath);
 
     meshobject_init(&quadMesh2);
-    meshobject_load_objfile(&quadMesh2, STRING("../objects/Quad.obj"));
+    meshobject_load_objfile(&quadMesh2, STRING("../objects/SubdPlane.obj"));
 
     GPB_submit_all_transfer_buffers();
 
@@ -134,7 +147,11 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     // Pass data to the uniform
     UniformParams params = {0};
     params.u_scale = time;
-    params.offset = 0.1;
+
+    // Determines how the vertex shader affects the vertices
+    params.mode = 1;
+    params.shouldScaleX = false;
+    params.rippleScale = 1.0f;
     SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
 
     //mat4 trans;
@@ -167,6 +184,15 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     params.u_scale = time;
     params.offset = 0.8;
+
+    //Determines how the fragment shader will modify the vertices
+    params.mode = 2;
+    params.shouldScaleX = true;
+    params.rippleScale = 1.2f;
+
+    int windowWidth, windowHeight;
+    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+    params.xScaling = (float)windowHeight / (float)windowWidth;
     SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
     meshobject_render(&quadMesh, renderPass);
 
@@ -177,6 +203,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    string_free(&RenderObjectPath);
+
     graphics_pipeline_factory_registry_terminate();
     GPB_terminate();
 
