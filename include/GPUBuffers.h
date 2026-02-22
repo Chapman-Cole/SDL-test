@@ -15,7 +15,7 @@ typedef struct GPBUploadBuffer {
 // Defines the possible sizes of the transfer buffers, with each size being
 // allocated 4 transfer buffers each
 // Note: these sizees should definitely be updated later
-static const Uint32 transferBufferBinSizes[] = {6400, 64000, 256000, 1024000};
+static const Uint32 transferBufferBinSizes[] = {6400, 64000, 256000, 1024000, 16384000};
 #define TRANSFER_BUFFER_BIN_LEN sizeof(transferBufferBinSizes) / sizeof(transferBufferBinSizes[0])
 #define TRANSFER_BUFFER_BIN_SPAN 4
 
