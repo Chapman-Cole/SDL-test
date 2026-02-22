@@ -39,7 +39,7 @@ SDL_GPUShader* create_vertex_shader(string path, string entry_point, bool treat_
     string_concat(&shader_base_name_ext, &shader_base_name, &STRING(".spv"));
 
     string_concat(&output_file_path, &STRING("../shaders/"), &shader_base_name_ext);
-    const char* args[] = {"./ShaderCompInterface/shader_comp_interface", path.str, "vertex", entry_point.str, output_file_path.str, NULL};
+    const char* args[] = {"./bin/shader_comp_interface", path.str, "vertex", entry_point.str, output_file_path.str, NULL};
 
     SDL_Process* shader_comp_interface = NULL;
     SDL_PropertiesID props = SDL_CreateProperties();
@@ -158,7 +158,7 @@ SDL_GPUShader* create_fragment_shader(string path, string entry_point, bool trea
     string_concat(&shader_base_name_ext, &shader_base_name, &STRING(".spv"));
 
     string_concat(&output_file_path, &STRING("../shaders/"), &shader_base_name_ext);
-    const char* args[] = {"./ShaderCompInterface/shader_comp_interface", path.str, "fragment", entry_point.str, output_file_path.str, NULL};
+    const char* args[] = {"./bin/shader_comp_interface", path.str, "fragment", entry_point.str, output_file_path.str, NULL};
 
     SDL_Process* shader_comp_interface = NULL;
     SDL_PropertiesID props = SDL_CreateProperties();
