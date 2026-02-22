@@ -1,4 +1,4 @@
-#define SDL_MAIN_USE_CALLBACKS 1
+#define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 #include "GPUBuffers.h"
@@ -17,6 +17,8 @@
 
 // To compile with debug symbols on linux, do cmake -DCMAKE_BUILD_TYPE=Debug ..
 // For debug symbols on windows, cmake --build . --config Debug
+
+// gcc src/main.c src/GPUBuffers.c src/GraphicsPipeline.c src/MeshObject.c src/SDLDevice.c src/Shader.c src/Strings.c src/Window.c -Iinclude/ -lSDL3 -lm -lSPIRV-Tools-opt -lSPIRV-Tools -lglslang -lshaderc_combined -lm -fsanitize=address -o build/main
 
 typedef struct UniformParams {
     float u_scale;

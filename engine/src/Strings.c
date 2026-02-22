@@ -163,7 +163,7 @@ int string_read_file(string* str, string* path) {
     void* temp = SDL_LoadFile(path->str, &len);
 
     if (temp == NULL) {
-        SDL_Log("Failed to load file: %s.\n", path->str);
+        SDL_Log("Failed to load file: %s\n", path->str);
         SDL_Quit();
         exit(-1);
     }
