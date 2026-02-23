@@ -9,15 +9,18 @@ include(cmake/SDL3.cmake)
 include(cmake/cglm.cmake)
 
 if(UNIX)
-    target_link_libraries(main PRIVATE
+    target_link_libraries(${project_exe_name} PRIVATE
         m
     )
 endif()
 
-target_include_directories(main PRIVATE "include" ../external ../external/SPIRV-Headers)
+target_include_directories(${project_exe_name} PRIVATE "include" ../external ../external/SPIRV-Headers)
 
 
 # Enable for address sanitization
-#set_target_properties(main PROPERTIES LINKER_LANGUAGE CXX)
+# Linux Below
 #target_compile_options(main PRIVATE -fsanitize=address)
 #target_link_options(main PRIVATE -fsanitize=address)
+# Windows Below
+#target_compile_options(${project_exe_name} PRIVATE "/fsanitize=address" "/Zi")
+#target_link_options(${project_exe_name} PRIVATE "/fsanitize=address")
