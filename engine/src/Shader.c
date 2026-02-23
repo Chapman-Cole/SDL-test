@@ -67,7 +67,7 @@ SDL_GPUShader* create_vertex_shader(string path, string entry_point, bool treat_
 
     // Extract uniform information by creating spvreflect shader module
     SpvReflectShaderModule module;
-    SpvReflectResult result = spvReflectCreateShaderModule(spirv_file.len * sizeof(char), spirv_file.str, &module);
+    SpvReflectResult result = spvReflectCreateShaderModule(spirv_file.len, spirv_file.str, &module);
 
     Uint32 count = 0;
     if (result != SPV_REFLECT_RESULT_SUCCESS) {
@@ -76,6 +76,7 @@ SDL_GPUShader* create_vertex_shader(string path, string entry_point, bool treat_
         exit(-1);
     }
 
+    // Counts the number of descriptor bindings
     result = spvReflectEnumerateDescriptorBindings(&module, &count, NULL);
     if (result != SPV_REFLECT_RESULT_SUCCESS) {
         SDL_Log("Failed to retrieve spirv bindings count\n");
@@ -91,7 +92,7 @@ SDL_GPUShader* create_vertex_shader(string path, string entry_point, bool treat_
         exit(-1);
     }
 
-    // Counts the number of descriptor bindings
+    // Fetches pointers to the modules descriptor buffers, and stores them in bindings pointer
     result = spvReflectEnumerateDescriptorBindings(&module, &count, bindings);
     if (result != SPV_REFLECT_RESULT_SUCCESS) {
         SDL_Log("Failed to enumerate through spirv descriptor bindings.\n");
