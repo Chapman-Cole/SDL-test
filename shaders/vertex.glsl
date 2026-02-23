@@ -96,8 +96,8 @@ void main() {
         v_pos = a_position;
     } else if (params.mode == 2) {
         vec3 newPos = pos;
-        newPos.x += 0.015;
-        newPos.y += 0.015;
+        newPos.x += 0.011;
+        newPos.y += 0.011;
         newPos.x -= pos.x;
         newPos.y -= pos.y;
 
@@ -106,7 +106,7 @@ void main() {
 
         float zoomFactor = params.rippleScale;
 
-        float tMulty = time * minus_one_power(int(10.0f * perlinNoise(vec2(zoomFactor * pos.x - time, zoomFactor * pos.y + time))));
+        float tMulty = time * minus_one_power(int(10.0f * perlinNoise(vec2(zoomFactor * pos.x - time - params.offset, zoomFactor * pos.y + time - params.offset))));
         newPos.x = x * cos(tMulty) - y * sin(tMulty);
         newPos.y = x * sin(tMulty) + y * cos(tMulty);
 

@@ -157,9 +157,9 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     params.u_scale = time;
 
     // Determines how the vertex shader affects the vertices
-    params.mode = 0;
+    params.mode = 2;
     params.shouldScaleX = false;
-    params.rippleScale = 1.0f;
+    params.rippleScale = 0.8f;
     SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
 
     //mat4 trans;
