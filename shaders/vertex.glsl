@@ -11,7 +11,7 @@ layout (set = 1, binding = 0) uniform Params {
     int mode;
     int shouldScaleX;
     float rippleScale;
-    vec2 pad;
+    vec2 mouse;
 } params;
 
 //layout (set = 1, binding = 1) uniform MatrixBlock1 {
@@ -70,11 +70,6 @@ void main() {
     float time = params.time;
     float multiplier = 1.0f;
 
-    //float x = pos.x;
-    //float y = pos.y;
-    //float r = sqrt(x*x + y*y) - params.time;
-    //multiplier = sin(r) + 0.5 * sin(2 * r - 1.0) + 0.1 * sin(4 * r - 5.0);
-
     if (params.mode == 0) {
         if (params.shouldScaleX == 1) {
             pos.x *= params.xScaling;
@@ -118,6 +113,10 @@ void main() {
         if (params.shouldScaleX == 1) {
             pos.x *= params.xScaling;
         }
+
+        float dropoff = 1.0f / clamp(pow(distance(5.0f * params.mouse, 5.0f * pos.xy), 2), 1.2f, 10000.0f);
+
+        pos.xy += dropoff * (params.mouse - pos.xy);
 
         gl_Position = vec4(pos, 1.0f);
         v_pos = a_position;

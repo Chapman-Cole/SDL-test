@@ -11,7 +11,7 @@ layout (set = 3, binding = 0) uniform Params {
     int mode;
     int shouldScaleX;
     float rippleScale;
-    vec2 pad;
+    vec2 mouse;
 } params;
 
 layout (set = 3, binding = 1) uniform Color {
@@ -114,6 +114,9 @@ void main() {
     } else {
         FragColor = color.col3;
     }
+
+    float dropoff = 1.0f / clamp(pow(distance(params.mouse, pos.xy), 2), 5.0f, 100.0f);
+    FragColor.xyz += dropoff * vec3(1.0, 1.0, 1.0);
 
     clamp(FragColor, 0.0, 1.0);
 }

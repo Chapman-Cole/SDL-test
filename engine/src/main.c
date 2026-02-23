@@ -27,8 +27,8 @@ typedef struct UniformParams {
     int mode;
     int shouldScaleX;
     float rippleScale;
-    float pad1;
-    float pad2;
+    float mouseX;
+    float mouseY;
 } UniformParams;
 
 typedef struct ColorParams {
@@ -152,8 +152,14 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     // bind the graphics pipeline
     SDL_BindGPUGraphicsPipeline(renderPass, graphicsPipeline);
 
+    int windowWidth, windowHeight;
+    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+
     // Pass data to the uniform
     UniformParams params = {0};
+    SDL_GetMouseState(&params.mouseX, &params.mouseY);
+    params.mouseX = (params.mouseX / (float)windowWidth) * 2.0f - 1.0f;
+    params.mouseY = -((params.mouseY / (float)windowHeight) * 2.0f - 1.0f);
     params.u_scale = time;
 
     // Determines how the vertex shader affects the vertices
@@ -198,8 +204,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     params.shouldScaleX = true;
     params.rippleScale = 1.2f;
 
-    int windowWidth, windowHeight;
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     params.xScaling = (float)windowHeight / (float)windowWidth;
     SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
     meshobject_render(&quadMesh, renderPass);
