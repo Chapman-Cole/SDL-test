@@ -10,6 +10,7 @@ include(cmake/cglm.cmake)
 
 if(UNIX)
     target_link_libraries(${project_exe_name} PRIVATE
+        asan
         m
     )
 endif()
@@ -19,8 +20,8 @@ target_include_directories(${project_exe_name} PRIVATE "include" ../external ../
 
 # Enable for address sanitization
 # Linux Below
-#target_compile_options(main PRIVATE -fsanitize=address)
-#target_link_options(main PRIVATE -fsanitize=address)
+target_compile_options(main PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+target_link_options(main PRIVATE -fsanitize=address)
 # Windows Below
 #target_compile_options(${project_exe_name} PRIVATE "/fsanitize=address" "/Zi")
 #target_link_options(${project_exe_name} PRIVATE "/fsanitize=address")
