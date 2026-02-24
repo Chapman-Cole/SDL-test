@@ -10,7 +10,6 @@ include(cmake/cglm.cmake)
 
 if(UNIX)
     target_link_libraries(${project_exe_name} PRIVATE
-        asan
         m
     )
 endif()

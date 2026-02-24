@@ -115,8 +115,9 @@ void main() {
         FragColor = color.col3;
     }
 
-    float dropoff = 1.0f / clamp(pow(distance(params.mouse, pos.xy), 2), 5.0f, 100.0f);
-    FragColor.xyz += dropoff * vec3(1.0, 1.0, 1.0);
+    float dropoff = 1.0f / clamp(pow(distance(5.0f * params.mouse, 5.0f * pos.xy), 2), 0.5f, 10000.0f);
+
+    FragColor.rgb += dropoff * vec3(params.mouse - pos.xy, dot(params.mouse, pos.xy));
 
     clamp(FragColor, 0.0, 1.0);
 }
