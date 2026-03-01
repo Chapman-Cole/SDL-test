@@ -37,35 +37,42 @@ typedef struct ColorParams {
     SDL_FColor col3;
 } ColorParams;
 
-SDL_Window* window = NULL;
-SDL_GPUDevice* device = NULL;
+Uint64 perfFrequency = 0;
+Uint64 perfCounterPrev = 0;
 
-SDL_GPUGraphicsPipeline* graphicsPipeline = NULL;
-
-Mesh quadMesh;
-Mesh quadMesh2;
-
-Uint64 perfFrequency;
-Uint64 perfCounterPrev;
-
-double elapsedTime = 0.0;
-
-float time = 0.0;
-
+// IMPORTANT NOTE: This globabl variable cannot be called "time" because then it will conflict
+// with other libc/posix functions with the same name. This will result in absolutely horrnedous 
+// undefined behavior that will leave you questioning your sanity. This has to do with the way symbol 
+// tables work for ELF executables, as global variables and function names can become interposed and
+// cause some truly awful bugs
+float appTime = 0.0;
 string RenderObjectPath;
 
+SDL_GPUGraphicsPipeline* graphicsPipeline = NULL;
+Mesh background;
+Mesh FrontObject;
+
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        SDL_Log("SDL_Init failed: %s", SDL_GetError());
-        return 1;
+    string_init(&RenderObjectPath);
+    if (argc > 1) {
+        string_copy(&RenderObjectPath, &(string){.str = argv[1], .len = strlen(argv[1]), .__memsize = -1});
+    } else {
+        string_copy(&RenderObjectPath, &STRING("../objects/Flower.obj"));
     }
 
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        SDL_Log("SDL_Init failed: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    SDL_Window* window = NULL;
     window = SDL_CreateWindow("SDL-test", 960, 540, SDL_WINDOW_RESIZABLE);
     if (window == NULL) {
         SDL_Log("Window Creation Failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
+    SDL_GPUDevice* device = NULL;
     device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
     if (device == NULL) {
         SDL_Log("GPU device creation failed: %s", SDL_GetError());
@@ -74,45 +81,32 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     SDL_ClaimWindowForGPUDevice(device, window);
 
-    string_init(&RenderObjectPath);
-    if (argc > 1) {
-        string_copy(&RenderObjectPath, &(string){.str = argv[1], .len = strlen(argv[1]), .__memsize = -1});
-    } else {
-        string_copy(&RenderObjectPath, &STRING("../objects/Flower.obj"));
-    }
-
-    perfFrequency = SDL_GetPerformanceFrequency();
-    perfCounterPrev = SDL_GetPerformanceCounter();
-
-    // Set the sdl gpu device for all modules, and initialize gpb (gpu buffers)
     set_SDL_gpu_device(device);
     set_SDL_main_window(window);
+
     GPB_init();
+    meshobject_init(&background);
+    meshobject_load_objfile(&background, STRING("../objects/SubdPlane.obj"));
 
-    // Create the quad mesh
-    meshobject_init(&quadMesh);
-    meshobject_load_objfile(&quadMesh, RenderObjectPath);
-
-    meshobject_init(&quadMesh2);
-    meshobject_load_objfile(&quadMesh2, STRING("../objects/SubdPlane.obj"));
-
+    meshobject_init(&FrontObject);
+    meshobject_load_objfile(&FrontObject, RenderObjectPath);
     GPB_submit_all_transfer_buffers();
 
-    // Create the vertex shader
     SDL_GPUShader* vertexShader = create_vertex_shader(STRING("../shaders/vertex.glsl"), STRING("main"), false);
-
-    // Create the fragment shader
     SDL_GPUShader* fragmentShader = create_fragment_shader(STRING("../shaders/fragment.glsl"), STRING("main"), false);
 
-    graphics_pipeline_factory_registry_init();
-    graphicsPipeline = graphics_pipeline_factory_registry_generate_pipeline(STRING("default"), vertexShader, fragmentShader);
+    GraphicsPipelineFactory pipelineFactory;
+    graphics_pipeline_factory_init(&pipelineFactory);
+    graphics_pipeline_factory_append_vertex_buffer_description(&pipelineFactory, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
+    graphics_pipeline_factory_append_vertex_atribute(&pipelineFactory, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
+    graphics_pipeline_factory_append_color_target_description_default(&pipelineFactory, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), get_SDL_main_window()));
+    graphicsPipeline = graphics_pipeline_factory_generate_pipeline(&pipelineFactory, vertexShader, fragmentShader);
+    graphics_pipeline_factory_destroy(&pipelineFactory);
 
-    SDL_ReleaseGPUShader(device, vertexShader);
-    SDL_ReleaseGPUShader(device, fragmentShader);
-
-    // Disable vsync
     SDL_SetGPUSwapchainParameters(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_IMMEDIATE);
 
+    perfCounterPrev = SDL_GetPerformanceCounter();
+    perfFrequency = SDL_GetPerformanceFrequency();
     return SDL_APP_CONTINUE;
 }
 
@@ -126,15 +120,17 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
     Uint64 perfCounterNow = SDL_GetPerformanceCounter();
+    perfFrequency = SDL_GetPerformanceFrequency();
     double elapsed = (double)(perfCounterNow - perfCounterPrev) / (double)perfFrequency;
     perfCounterPrev = perfCounterNow;
-    time += (float)elapsed;
+    appTime += (float)elapsed;
 
-    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
 
     SDL_GPUTexture* swapchainTexture;
-    Uint32 width, height;
-    SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, window, &swapchainTexture, &width, &height);
+    Uint32 wdith, height;
+    SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, get_SDL_main_window(), &swapchainTexture, &wdith, &height);
     if (swapchainTexture == NULL) {
         SDL_SubmitGPUCommandBuffer(commandBuffer);
         return SDL_APP_CONTINUE;
@@ -146,36 +142,25 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
     colorTargetInfo.texture = swapchainTexture;
 
-    // Begin the render pass
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, NULL);
 
-    // bind the graphics pipeline
     SDL_BindGPUGraphicsPipeline(renderPass, graphicsPipeline);
 
     int windowWidth, windowHeight;
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+    SDL_GetWindowSizeInPixels(get_SDL_main_window(), &windowWidth, &windowHeight);
 
-    // Pass data to the uniform
     UniformParams params = {0};
     SDL_GetMouseState(&params.mouseX, &params.mouseY);
     params.mouseX = (params.mouseX / (float)windowWidth) * 2.0f - 1.0f;
     params.mouseY = -((params.mouseY / (float)windowHeight) * 2.0f - 1.0f);
-    params.u_scale = time;
-
-    // Determines how the vertex shader affects the vertices
+    params.u_scale = appTime;
     params.mode = 2;
     params.shouldScaleX = false;
     params.rippleScale = 0.8f;
-    SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
-
-    //mat4 trans;
-    //glm_mat4_identity(trans);
-    //glm_rotate(trans, time / 2.0f, (vec3){0.0f, 0.0f, 1.0f});
-    //glm_scale(trans, (vec3){0.5, 0.5, 0.5});
-
-    //SDL_PushGPUVertexUniformData(commandBuffer, 1, trans, sizeof(mat4));
-
+    params.xScaling = (float)windowHeight / (float)windowWidth;
     params.offset = 0.6f;
+
+    SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
     SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
     SDL_PushGPUFragmentUniformData(commandBuffer, 1, &(ColorParams){
         .col1 = (SDL_FColor){3.0 / 255.0, 64.0 / 255.0, 120.0 / 255.0, 1.0},
@@ -184,9 +169,12 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     },
     sizeof(ColorParams)
     );
-    meshobject_render(&quadMesh2, renderPass);
+    meshobject_render(&background, renderPass);
 
     params.offset = -0.6f;
+    params.shouldScaleX = true;
+    params.rippleScale = 1.2f;
+    SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
     SDL_PushGPUFragmentUniformData(commandBuffer, 0, &params, sizeof(params));
     SDL_PushGPUFragmentUniformData(commandBuffer, 1, &(ColorParams){
         .col1 = (SDL_FColor){255.0 / 255.0, 71.0 / 255.0, 76.0 / 255.0, 1.0},
@@ -195,40 +183,21 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     },
     sizeof(ColorParams)
     );
+    meshobject_render(&FrontObject, renderPass);
 
-    params.u_scale = time;
-    params.offset = 0.8;
 
-    //Determines how the fragment shader will modify the vertices
-    params.mode = 2;
-    params.shouldScaleX = true;
-    params.rippleScale = 1.2f;
-
-    params.xScaling = (float)windowHeight / (float)windowWidth;
-    SDL_PushGPUVertexUniformData(commandBuffer, 0, &params, sizeof(params));
-    meshobject_render(&quadMesh, renderPass);
-
-    // End the render pass before submitting the command buffer
     SDL_EndGPURenderPass(renderPass);
     SDL_SubmitGPUCommandBuffer(commandBuffer);
     return SDL_APP_CONTINUE;
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    meshobject_destroy(&background);
+    meshobject_destroy(&FrontObject);
     string_free(&RenderObjectPath);
 
-    graphics_pipeline_factory_registry_terminate();
-    GPB_terminate();
+    SDL_ReleaseGPUGraphicsPipeline(get_SDL_gpu_device(), graphicsPipeline);
 
-    meshobject_destroy(&quadMesh);
-    meshobject_destroy(&quadMesh2);
-
-    // release the pipeline
-    SDL_ReleaseGPUGraphicsPipeline(device, graphicsPipeline);
-
-    // destroy the gpu device
-    SDL_DestroyGPUDevice(device);
-
-    // destory the window
-    SDL_DestroyWindow(window);
+    SDL_DestroyGPUDevice(get_SDL_gpu_device());
+    SDL_DestroyWindow(get_SDL_main_window());
 }

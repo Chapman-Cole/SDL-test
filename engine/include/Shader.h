@@ -19,5 +19,4 @@ SDL_GPUShader* create_vertex_shader(string path, string entry_point, bool treat_
 // Operates very similar to the create_vertex_shader function, but for fragment shaders
 SDL_GPUShader* create_fragment_shader(string path, string entry_point, bool treat_path_as_shader_source);
 
-
 #endif
