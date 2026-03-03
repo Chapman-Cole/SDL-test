@@ -116,7 +116,23 @@ void main() {
 
         float dropoff = 1.0f / clamp(pow(distance(5.0f * params.mouse, 5.0f * pos.xy), 2), 1.2f, 10000.0f);
 
-        pos.xy += dropoff * (params.mouse - pos.xy);
+        // Makes trippy sphere effect
+        // pos.xy = dropoff * (params.mouse - pos.xy);
+
+        // Makes paraboloid effect
+        // pos.xy = dropoff * (params.mouse + pos.xy);
+
+        // Offset magnifying effect
+        // pos.xy += dropoff * (params.mouse + pos.xy);
+
+        // Fabric poking effect
+        pos.xy -= dropoff * (params.mouse + pos.xy);
+
+        // Makes pinching effect
+        // pos.xy += dropoff * (params.mouse - pos.xy);
+
+        // Makes magnfication effect
+        // pos.xy -= dropoff * (params.mouse - pos.xy);
 
         gl_Position = vec4(pos, 1.0f);
         v_pos = a_position;
