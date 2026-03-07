@@ -10,11 +10,6 @@
 #include <cglm/cglm.h>
 #include "Window.h"
 
-// For arch linux, use MANGOHUD=1 ./main to get fps info since something recently
-// changed about how SDL3 handles Vulkan hooks that breaks the normal usage of
-// mangohud. This could also be an issue with vulkan-icd-loader changes, as asan
-// has been flagging that recently
-
 // To compile with debug symbols on linux, do cmake -DCMAKE_BUILD_TYPE=Debug ..
 // For debug symbols on windows, cmake --build . --config Debug
 

@@ -126,13 +126,13 @@ void main() {
         // pos.xy += dropoff * (params.mouse + pos.xy);
 
         // Fabric poking effect
-        pos.xy -= dropoff * (params.mouse + pos.xy);
+        // pos.xy -= dropoff * (params.mouse + pos.xy);
 
         // Makes pinching effect
         // pos.xy += dropoff * (params.mouse - pos.xy);
 
         // Makes magnfication effect
-        // pos.xy -= dropoff * (params.mouse - pos.xy);
+        pos.xy -= dropoff * (params.mouse - pos.xy);
 
         gl_Position = vec4(pos, 1.0f);
         v_pos = a_position;

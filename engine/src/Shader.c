@@ -122,9 +122,11 @@ SDL_GPUShader* create_vertex_shader(string path, string entry_point, bool treat_
         exit(-1);
     }
 
+    // Cleanup
     string_free(&output_file_path);
     string_free(&shader_base_name);
     string_free(&shader_base_name_ext);
+    string_free(&spirv_file);
     return vertexShader;
 }
 
@@ -241,8 +243,10 @@ SDL_GPUShader* create_fragment_shader(string path, string entry_point, bool trea
         exit(-1);
     }
 
+    // Cleanup
     string_free(&output_file_path);
     string_free(&shader_base_name);
     string_free(&shader_base_name_ext);
+    string_free(&spirv_file);
     return fragmentShader;
 }

@@ -160,6 +160,8 @@ int string_read_console(string* str) {
 
 int string_read_file(string* str, string* path) {
     size_t len;
+    // Automitcally allocates memory
+    // Automitcally appends a null terminator, so no need to add that ourselves
     void* temp = SDL_LoadFile(path->str, &len);
 
     if (temp == NULL) {
@@ -168,7 +170,8 @@ int string_read_file(string* str, string* path) {
         exit(-1);
     }
 
-    string_resize(str, len);
+    // Since the memory is automatically allocated for us, there is no need to call the string resize
+    // function
     str->str = (char*)temp;
     str->len = len;
     return 0;
