@@ -11,4 +11,6 @@ void set_SDL_main_window(SDL_Window* mainWindow);
 // Allows you to get an SDL_Window* to the main window
 SDL_Window* get_SDL_main_window(void);
 
+void destroy_SDL_main_window(void);
+
 #endif

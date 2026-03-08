@@ -11,4 +11,6 @@ void set_SDL_gpu_device(SDL_GPUDevice* gpd);
 
 SDL_GPUDevice* get_SDL_gpu_device(void);
 
+void destroy_SDL_gpu_device(void);
+
 #endif

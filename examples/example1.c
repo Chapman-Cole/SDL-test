@@ -68,7 +68,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     }
 
     SDL_GPUDevice* device = NULL;
-    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, NULL);
+    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
     if (device == NULL) {
         SDL_Log("GPU device creation failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -197,6 +197,6 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
 
     SDL_ReleaseGPUGraphicsPipeline(get_SDL_gpu_device(), graphicsPipeline);
 
-    SDL_DestroyGPUDevice(get_SDL_gpu_device());
-    SDL_DestroyWindow(get_SDL_main_window());
+    destroy_SDL_gpu_device();
+    destroy_SDL_main_window();
 }
