@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 4.1.0)
 project(engine LANGUAGES C CXX)
 
+# >>>>>>>>>>>>>>>>>>>>>> IMPORTANT USAGE NOTES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# When using the static library engine_combined, you must link to all of its 
+# dependencies, which right now are SDL3, shaderc_combined, and cglm. When 
+# using the shared object/dll version this is done for you, and the only 
+# requirement is that the shared object files are in the system path or in
+# the same directory as the executable file at runtime
+# ---------------------------------------------------------------------------
+
 # >>>>>>>>>>>>>>>>>>>>>>> OBJECT LIB COMPILATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 # Compile the files once to an object library so the static and dynamic link versions can be built later on
@@ -47,6 +55,10 @@ include(../cmake/use_cglm.cmake)
 # Build the shared object (dynamic link) version of the library
 add_library(EngineSharedLib SHARED $<TARGET_OBJECTS:EngineObjectLib>)
 
+# On windows, in order to get the import library for the dll, I have to manually
+# export all symbols since I don't do that in the source code
+set_target_properties(EngineSharedLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+
 # This must come before including the other cmake files
 set(project_name "EngineSharedLib")
 
@@ -64,8 +76,12 @@ endif()
 
 # ------------------------------------------------------------------------------
 
-# Make sure both libraries have the same name on disk (libengine.a and libengine.so for instance on linux)
-set_target_properties(EngineStaticLib PROPERTIES OUTPUT_NAME "engine")
+# The static library will be called engine_combined, while the the shared library will just be called engine
+# On windows, you will have engine_combined.lib and engine.lib in the lib folder, while engine.dll is placed in 
+# in the bin folder. In this case, engine.lib is just an import library for engine.dll, while engine_combined.lib 
+# is an actual static library containing all the necessary code
+# On linux, you will have libengine_combined.a and libengine.so in the lib folder, making it a little more straightforward
+set_target_properties(EngineStaticLib PROPERTIES OUTPUT_NAME "engine_combined")
 set_target_properties(EngineSharedLib PROPERTIES OUTPUT_NAME "engine")
 
 
