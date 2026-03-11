@@ -33,6 +33,13 @@ float appTime = 0.0f;
 ScalableRectangle* rectangles = NULL;
 Uint32 rectanglesLen = 10;
 
+SDL_AudioSpec audioSpec;
+Uint8* wavBuffer = NULL;
+Uint32 wavLen = 0;
+SDL_AudioDeviceID audioDeviceID;
+SDL_AudioStream* audioStream;
+SDL_AudioSpec audioDeviceSpec;
+
 SDL_GPUGraphicsPipeline* graphicsPipeline = NULL;
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
@@ -49,7 +56,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     }
 
     SDL_GPUDevice* device = NULL;
-    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, NULL);
+    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
     if (device == NULL) {
         SDL_Log("GPU device creation failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -89,6 +96,27 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     // Disable VSYNC, if possible (not gauranteed).
     SDL_SetGPUSwapchainParameters(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_IMMEDIATE);
 
+    if (!SDL_LoadWAV("../audio/OrchestralSound.wav", &audioSpec, &wavBuffer, &wavLen)) {
+        SDL_Log("Failed to load wav audio data");
+        SDL_Quit();
+        exit(-1);
+    }
+
+    audioDeviceID = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audioSpec);
+
+    if (!audioDeviceID) {
+        SDL_Log("Failed to open SDL3 audio device");
+        SDL_Quit();
+        exit(-1);
+    }
+
+    SDL_GetAudioDeviceFormat(audioDeviceID, &audioDeviceSpec, NULL);
+
+    audioStream = SDL_CreateAudioStream(&audioSpec, &audioDeviceSpec);
+
+    SDL_PutAudioStreamData(audioStream, wavBuffer, (int)wavLen);
+    SDL_BindAudioStream(audioDeviceID, audioStream);
+    SDL_ResumeAudioDevice(audioDeviceID);
     return SDL_APP_CONTINUE;
 }
 
@@ -141,6 +169,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    SDL_DestroyAudioStream(audioStream);
+    SDL_CloseAudioDevice(audioDeviceID);
+    SDL_free(wavBuffer);
+
     for (int i = 0; i < rectanglesLen; i++) {
         meshobject_destroy(&rectangles[i].rect);
     }
