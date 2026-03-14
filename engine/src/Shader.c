@@ -108,9 +108,9 @@ int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* sp
     return 0;
 }
 
-SDL_GPUShader* create_vertex_shader(string source, string entry_point, Uint32 sourceType) {
+SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 sourceType) {
     SDL_GPUShaderCreateInfo vertexInfo = {0};
-    vertexInfo.entrypoint = entry_point.str;
+    vertexInfo.entrypoint = entry_point->str;
     vertexInfo.format = ShaderFormat; // loading .spv shaders
     vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;  // vertex shader
     vertexInfo.num_samplers = 0;
@@ -124,18 +124,18 @@ SDL_GPUShader* create_vertex_shader(string source, string entry_point, Uint32 so
     if (sourceType == SHADER_COMPILATION_GLSL_PATH) {
         string glslSource;
         string_init(&glslSource);
-        string_read_file(&glslSource, &source);
+        string_read_file(&glslSource, source);
 
-        compile_glsl_to_spirv(&glslSource, &source, &spirv_file, &entry_point, shaderc_glsl_vertex_shader);
+        compile_glsl_to_spirv(&glslSource, source, &spirv_file, entry_point, shaderc_glsl_vertex_shader);
 
         string_free(&glslSource);
     } else if (sourceType == SHADER_COMPILATION_GLSL_STRING) {
-        compile_glsl_to_spirv(&source, &STRING("Internal String Source"), &spirv_file, &entry_point, shaderc_glsl_vertex_shader);
+        compile_glsl_to_spirv(source, &STRING("Internal String Source"), &spirv_file, entry_point, shaderc_glsl_vertex_shader);
     } else if (sourceType == SHADER_COMPILATION_SPIRV_PATH) {
-        string_read_file(&spirv_file, &source);
+        string_read_file(&spirv_file, source);
     } else if (sourceType == SHADER_COMPILATION_SPIRV_STRING) {
         // In this case, the source string is the spirv code
-        spirv_file = source;
+        spirv_file = *source;
     } else {
         SDL_Log("Invalid source type entered into creation of shader.");
         SDL_Quit();
@@ -164,9 +164,9 @@ SDL_GPUShader* create_vertex_shader(string source, string entry_point, Uint32 so
     return vertexShader;
 }
 
-SDL_GPUShader* create_fragment_shader(string source, string entry_point, Uint32 sourceType) {
+SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint32 sourceType) {
     SDL_GPUShaderCreateInfo fragmentInfo = {0};
-    fragmentInfo.entrypoint = entry_point.str;
+    fragmentInfo.entrypoint = entry_point->str;
     fragmentInfo.format = ShaderFormat; // loading .spv shaders
     fragmentInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;  // fragment shader
     fragmentInfo.num_samplers = 0;
@@ -180,18 +180,18 @@ SDL_GPUShader* create_fragment_shader(string source, string entry_point, Uint32 
     if (sourceType == SHADER_COMPILATION_GLSL_PATH) {
         string glslSource;
         string_init(&glslSource);
-        string_read_file(&glslSource, &source);
+        string_read_file(&glslSource, source);
 
-        compile_glsl_to_spirv(&glslSource, &source, &spirv_file, &entry_point, shaderc_glsl_fragment_shader);
+        compile_glsl_to_spirv(&glslSource, source, &spirv_file, entry_point, shaderc_glsl_fragment_shader);
 
         string_free(&glslSource);
     } else if (sourceType == SHADER_COMPILATION_GLSL_STRING) {
-        compile_glsl_to_spirv(&source, &STRING("Internal String Source"), &spirv_file, &entry_point, shaderc_glsl_fragment_shader);
+        compile_glsl_to_spirv(source, &STRING("Internal String Source"), &spirv_file, entry_point, shaderc_glsl_fragment_shader);
     } else if (sourceType == SHADER_COMPILATION_SPIRV_PATH) {
-        string_read_file(&spirv_file, &source);
+        string_read_file(&spirv_file, source);
     } else if (sourceType == SHADER_COMPILATION_SPIRV_STRING) {
         // In this case, the source string is the spirv code
-        spirv_file = source;
+        spirv_file = *source;
     } else {
         SDL_Log("Invalid source type entered into creation of shader.");
         SDL_Quit();

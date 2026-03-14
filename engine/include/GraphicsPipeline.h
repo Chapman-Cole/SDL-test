@@ -20,45 +20,42 @@ typedef struct GraphicsPipelineFactory {
     SDL_GPUColorTargetDescription* colorTargetDescriptions;
 } GraphicsPipelineFactory;
 
-// The name string is used so that it can be found by searching
-// with strings
-typedef struct GraphicsPipelineFactoryRegistryItem {
-    GraphicsPipelineFactory factory;
-    string name;
-} GraphicsPipelineFactoryRegistryItem;
+typedef struct GraphicsPipeline {
+    SDL_GPUGraphicsPipeline* graphicsPipeline;
+    GraphicsPipelineFactory* factory;
+    // The first slot is for the vertex shader, and
+    // the second slot is for the fragment shader
+    SDL_GPUShader* shaders[2];
+} GraphicsPipeline;
 
-// A registry for created graphics pipelines so 
-static GraphicsPipelineFactoryRegistryItem* GraphicsPipelineFactoryRegistry;
-static Uint32 GraphicsPipelineFactoryRegistryLen = 0;
-static Uint32 GraphicsPipelineFactoryRegistryMemsize = 1;
-
-// Must be called directly after declaration of a graphics pipeline factory to 
+// Must be called directly after declaration of a graphics pipeline to 
 // properly initialize it
-void graphics_pipeline_factory_init(GraphicsPipelineFactory* factory);
+int graphics_pipeline_init(GraphicsPipeline* pipeline);
 
-// Frees up the data used by the graphics pipeline factory. Must be called once
-// finished with the graphics pipeline factory, which is usually after you have
-// fetched the actual SDL graphics pipeline from it
-void graphics_pipeline_factory_destroy(GraphicsPipelineFactory* factory);
+// Frees up the data used by the graphics pipeline and releases the graphics pipeline.
+// Must be called once completely done with the pipeline.
+int graphics_pipeline_destroy(GraphicsPipeline* pipeline);
 
-// Sets the primitive type for the graphics pipeline factory
-void graphics_pipeline_factory_set_primitive_type(GraphicsPipelineFactory* factory, SDL_GPUPrimitiveType primType);
+// Sets the primitive type for the graphics pipeline
+// primType - Can be SDL_GPU_PRIMITIVETYPE_TRIANGLELIST, SDL_GPU_PRIMITIVETYPE_TRIANGLESTRIP, 
+// SDL_GPU_PRIMITIVETYPE_LINELIST, SDL_GPU_PRIMITIVETYPE_LINESTRIP, SDL_GPU_PRIMITIVETYPE_POINTLIST
+int graphics_pipeline_set_primitive_type(GraphicsPipeline* pipeline, SDL_GPUPrimitiveType primType);
 
 // Adds to the vertex buffer descriptions. input_rate refers to whether you are addressing vertex index or instance index
 // (example: SDL_GPU_VERTEXINPUTRATE_VERTEX). Pitch is the size of a single element + the offset between elements
-void graphics_pipeline_factory_append_vertex_buffer_description(GraphicsPipelineFactory* factory, SDL_GPUVertexInputRate input_rate, Uint32 pitch);
+int graphics_pipeline_append_vertex_buffer_description(GraphicsPipeline* pipeline, SDL_GPUVertexInputRate input_rate, Uint32 pitch);
 
 // Adds to the vertex attributes list
 // buffer_slot: which vertex buffer description you are referencing
 // location: layout (location = x) in glsl
 // format: The size and type of the attribute data (use the SDL enums for this parameter)
 // offset: The offset relative to the start of the vertex element
-void graphics_pipeline_factory_append_vertex_atribute(GraphicsPipelineFactory* factory, Uint32 buffer_slot, Uint32 location, SDL_GPUVertexElementFormat format, Uint32 offset);
+int graphics_pipeline_append_vertex_attribute(GraphicsPipeline* pipeline, Uint32 buffer_slot, Uint32 location, SDL_GPUVertexElementFormat format, Uint32 offset);
 
 // Adds to the color target description list
 // For more info on the paramters, reference the SDL_GPUColorTargetDescription struct fields
 // Format refers to the format of the pixel layout. This will usually end up being the result of calling SDL_GetGPUSwapchainTextureFormat()
-void graphics_pipeline_factory_append_color_target_description(GraphicsPipelineFactory* factory, bool enable_blend, SDL_GPUBlendOp color_blend_op, SDL_GPUBlendOp alpha_blend_op, SDL_GPUBlendFactor src_color_blendfactor, SDL_GPUBlendFactor dst_color_blendfactor, SDL_GPUBlendFactor src_alpha_blendfactor, SDL_GPUBlendFactor dst_alpha_blendfactor, SDL_GPUTextureFormat format);
+int graphics_pipeline_append_color_target_description(GraphicsPipeline* pipeline, bool enable_blend, SDL_GPUBlendOp color_blend_op, SDL_GPUBlendOp alpha_blend_op, SDL_GPUBlendFactor src_color_blendfactor, SDL_GPUBlendFactor dst_color_blendfactor, SDL_GPUBlendFactor src_alpha_blendfactor, SDL_GPUBlendFactor dst_alpha_blendfactor, SDL_GPUTextureFormat format);
 
 // Adds to the color target description list, but uses specific default values, which can be seen below
 // enable_blend = true;
@@ -69,25 +66,24 @@ void graphics_pipeline_factory_append_color_target_description(GraphicsPipelineF
 // src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
 // dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
 // Format refers to the format of the pixel layout. This will usually end up being the result of calling SDL_GetGPUSwapchainTextureFormat()
-void graphics_pipeline_factory_append_color_target_description_default(GraphicsPipelineFactory* factory, SDL_GPUTextureFormat format);
+int graphics_pipeline_append_color_target_description_default(GraphicsPipeline* pipeline, SDL_GPUTextureFormat format);
 
-// Initializes the graphics pipeline factory registry. This will provide a default
-// graphics pipeline factory to be used for basic scenarios
-void graphics_pipeline_factory_registry_init(void);
+// Attaches a vertex shader to the pipeline. 
+// source - Pointer to the source string for the glsl (or spirv code) depending on the sourceType
+// entry_point - A pointer to the string with the name for the entry point in the glsl code
+// sourceType - Specifies how the source string is interpreted. Can be SHADER_COMPILATION_GLSL_PATH,
+//              SHADER_COMPILATION_GLSL_STRING, SHADER_COMPILATION_SPIRV_PATH, or SHADER_COMPILATION_SPIRV_STRING
+int graphics_pipeline_attach_vertex_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType);
 
-// Frees up memory related to the graphics pipeline factory registry
-void graphics_pipeline_factory_registry_terminate(void);
+// Attaches a fragment shader to the pipeline.
+// source - Pointer to the source string for the glsl (or spirv code) depending on the sourceType
+// entry_point - A pointer to the string with the name for the entry point in the glsl code
+// sourceType - Specifies how the source string is interpreted. Can be SHADER_COMPILATION_GLSL_PATH,
+//              SHADER_COMPILATION_GLSL_STRING, SHADER_COMPILATION_SPIRV_PATH, or SHADER_COMPILATION_SPIRV_STRING
+int graphics_pipeline_attach_fragment_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType);
 
-// Returns the actual SDL graphics pipeline using the factory that was previously created
-SDL_GPUGraphicsPipeline* graphics_pipeline_factory_generate_pipeline(GraphicsPipelineFactory* factory, SDL_GPUShader* vertexShader, SDL_GPUShader* fragmentShader);
-
-// Appends the specified factory to the registry with the given name
-void graphics_pipeline_factory_registry_append(GraphicsPipelineFactory* factory, string name);
-
-// Returns a pointer to the specified graphics pipeline in the registry
-GraphicsPipelineFactory* graphics_pipeline_factory_registry_get_handle(string name);
-
-// Generates an SDL_GPUGraphicsPipeline* from the registry
-SDL_GPUGraphicsPipeline* graphics_pipeline_factory_registry_generate_pipeline(string name, SDL_GPUShader* vertexShader, SDL_GPUShader* fragmentShader);
+// Uses the specified configurations to generate the internal SDL graphics pipeline
+// This makes it ready for use with rendering. 
+int graphics_pipeline_generate(GraphicsPipeline* pipeline);
 
 #endif

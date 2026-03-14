@@ -38,12 +38,12 @@ int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* sp
 // number of uniforms, buffers, etc. to allow for precompilation benefits
 // source type refers to how the source string is treated, meaning it could be treated as the source shader code itself,
 // a path to the source, or even a path to spirv source code (use the ShaderCompilationSourceTypes enum)
-SDL_GPUShader* create_vertex_shader(string source, string entry_point, Uint32 sourceType);
+SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 sourceType);
 
 // The path string should point to a glsl file, and not a SPIR-V file
 // Operates very similar to the create_vertex_shader function, but for fragment shaders
 // source type refers to how the source string is treated, meaning it could be treated as the source shader code itself,
 // a path to the source, or even a path to spirv source code (use the ShaderCompilationSourceTypes enum)
-SDL_GPUShader* create_fragment_shader(string source, string entry_point, Uint32 sourceType);
+SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint32 sourceType);
 
 #endif
