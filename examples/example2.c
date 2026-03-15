@@ -12,7 +12,10 @@ typedef struct RectangleVertexUniform {
     float xScale;
     float yScale;
     float xOffset;
-    float pad;
+    int id;
+    int numBins;
+    float aspectRatio;
+    float pad[2];
 } RectangleVertexUniform;
 
 typedef struct RectangleFragmentUniform
@@ -30,8 +33,6 @@ typedef struct ScalableRectangle {
 } ScalableRectangle;
 
 float appTime = 0.0f;
-ScalableRectangle* rectangles = NULL;
-Uint32 rectanglesLen = 128;
 
 GraphicsPipeline graphicsPipeline;
 
@@ -39,6 +40,9 @@ SDL_Thread* audioThread;
 
 // Get the pipewire audio implementation
 #include "FetchSysAudio.c"
+
+ScalableRectangle* rectangles = NULL;
+Uint32 rectanglesLen = BIN_SIZE;
 
 MainTInput* tempInput = NULL;
 
@@ -48,13 +52,20 @@ Uint64 perfCounterPrev = 0;
 float waveformTime = 0.0;
 
 // Zero memory initially
-float prevAudioBuffer[MAIN_AUDIO_BUFFER_LEN] = {0};
-float currAudioBuffer[MAIN_AUDIO_BUFFER_LEN] = {0};
+float prevAudioBuffer[BIN_SIZE] = {0};
+float currAudioBuffer[BIN_SIZE] = {0};
 
-#define WAVEFORM_RESPONSEIVENESS 0.05
+#define WAVEFORM_RESPONSEIVENESS 0.1
+
+#define RGB_F(x) (((float)x) / 255.0f)
 
 float lerp(float a, float b, float t) {
     return a + t * (b - a);
+}
+
+float smoothstep_basic(float t) {
+    // The core cubic polynomial: 3*t^2 - 2*t^3
+    return t * t * (3.0f - 2.0f * t);
 }
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
@@ -98,7 +109,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
         meshobject_load_objfile(&rectangles[i].rect, STRING("../objects/Quad.obj"));
         rectangles[i].xScale = 1.0f / (float)rectanglesLen;
         rectangles[i].xOffset = (-1.0f + rectangles[i].xScale) + (2.0f * (float)i * rectangles[i].xScale);
-        rectangles[i].color = (SDL_FColor){SDL_randf(), SDL_randf(), SDL_randf(), SDL_randf()};
+        rectangles[i].color = (SDL_FColor){RGB_F(100), RGB_F(149), RGB_F(237), 1.0f};
     }
     GPB_submit_all_transfer_buffers();
 
@@ -143,8 +154,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     waveformTime += (float)elapsed;
 
     if (waveformTime >= WAVEFORM_RESPONSEIVENESS) {
-        SDL_memcpy(prevAudioBuffer, currAudioBuffer, MAIN_AUDIO_BUFFER_LEN * sizeof(float));
-        SDL_memcpy(currAudioBuffer, mainAudioBuffer, MAIN_AUDIO_BUFFER_LEN * sizeof(float));
+        SDL_memcpy(prevAudioBuffer, currAudioBuffer, BIN_SIZE * sizeof(float));
+        SDL_memcpy(currAudioBuffer, visualizerBars, BIN_SIZE * sizeof(float));
         waveformTime = 0.0f;
     }
 
@@ -159,7 +170,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     }
 
     SDL_GPUColorTargetInfo colorTargetInfo = {0};
-    colorTargetInfo.clear_color = (SDL_FColor){0.45f, 0.54f, 0.76f, 1.0f};
+    colorTargetInfo.clear_color = (SDL_FColor){0.0f, 0.0f, 0.0f, 1.0f};
     colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
     colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
     colorTargetInfo.texture = swapchainTexture;
@@ -168,12 +179,23 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     SDL_BindGPUGraphicsPipeline(renderPass, graphicsPipeline.graphicsPipeline);
 
+    int windowWidth, windowHeight;
+    SDL_GetWindowSizeInPixels(get_SDL_main_window(), &windowWidth, &windowHeight);
+
     RectangleVertexUniform vertexUniformData;
+    vertexUniformData.aspectRatio = (float)windowHeight / (float)windowWidth;
     RectangleFragmentUniform fragmentUniformData;
     for (int i = 0; i < rectanglesLen; i++) {
         vertexUniformData.xOffset = rectangles[i].xOffset;
         vertexUniformData.xScale = rectangles[i].xScale;
-        vertexUniformData.yScale = 12.0f * SDL_clamp(SDL_fabsf(lerp(prevAudioBuffer[i], currAudioBuffer[i], waveformTime / WAVEFORM_RESPONSEIVENESS)), 0.0f, 1.0f);
+        vertexUniformData.id = i;
+        vertexUniformData.numBins = rectanglesLen;
+        if (currAudioBuffer[i] > prevAudioBuffer[i]) {
+            vertexUniformData.yScale = lerp(prevAudioBuffer[i], currAudioBuffer[i], SDL_clamp(1.24f * waveformTime / WAVEFORM_RESPONSEIVENESS, 0.0, 1.0f));
+        } else {
+            vertexUniformData.yScale = lerp(prevAudioBuffer[i], currAudioBuffer[i], SDL_clamp(waveformTime / WAVEFORM_RESPONSEIVENESS, 0.0, 1.0f));
+        }
+
         
         fragmentUniformData.color = rectangles[i].color;
 

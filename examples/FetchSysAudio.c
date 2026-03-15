@@ -7,8 +7,9 @@
 #include <spa/param/audio/format-utils.h>
 
 #include <fftw3.h>
+#include <SDL3/SDL.h>
 
-#define AUDIO_BUFFER_LEN 256
+#define AUDIO_BUFFER_LEN 4096
 #define FFT_SIZE (AUDIO_BUFFER_LEN)
 #define MAIN_AUDIO_BUFFER_LEN ((FFT_SIZE / 2) + 1)
 
@@ -17,6 +18,10 @@ Uint32 rawAudioBufferCounter = 0;
 
 float mainAudioBuffer[MAIN_AUDIO_BUFFER_LEN];
 Uint32 mainAudioBufferCounter = 0;
+
+#define BIN_SIZE 128
+
+float visualizerBars[BIN_SIZE];
 
 double* fftIn;
 fftw_complex* fftwOut;
@@ -64,25 +69,134 @@ static void on_process(void *userdata) {
         stride = sizeof(float) * app->format.channels;
 
     uint32_t n_frames = size / stride;
-    if (n_frames > 0) {
-        const float *samples = (const float *)p;
-        float left = samples[0];
-        float right = (app->format.channels > 1) ? samples[1] : left;
-        rawAudioBuffer[rawAudioBufferCounter % AUDIO_BUFFER_LEN] = 0.5f * left + 0.5f * right;
+    const float *samples = (const float *)p;
+
+    for (int i = 0; i < n_frames && rawAudioBufferCounter < AUDIO_BUFFER_LEN; i++) {
+        float left = samples[i * app->format.channels];
+        float right = (app->format.channels > 1) ? samples[i * app->format.channels + 1] : left;
+        rawAudioBuffer[rawAudioBufferCounter] = 0.5f * left + 0.5f * right;
         rawAudioBufferCounter++;
     }
 
-    for (int i = 0; i < FFT_SIZE; i++) {
-        fftIn[i] = rawAudioBuffer[i] * (0.54 - 0.46 * SDL_cos(2 * SDL_PI_F * i / (FFT_SIZE - 1)));
+    if (rawAudioBufferCounter >= AUDIO_BUFFER_LEN) {
+        rawAudioBufferCounter = 0;
+
+        for (int i = 0; i < FFT_SIZE; i++) {
+            fftIn[i] = rawAudioBuffer[i] * (0.54 - 0.46 * SDL_cos(2 * SDL_PI_F * i / (FFT_SIZE - 1)));
+        }
+
+        fftw_execute(fftwPlan);
+
+        for (int i = 0; i < MAIN_AUDIO_BUFFER_LEN; i++) {
+            double real = fftwOut[i][0];
+            double imag = fftwOut[i][1];
+            double magnitude = SDL_sqrt(real * real + imag * imag);
+            mainAudioBuffer[i] = magnitude / FFT_SIZE;
+            //mainAudioBuffer[i] = 20.0f * SDL_log10(magnitude + 1e-12);
+            //mainAudioBuffer[i] = SDL_clamp(mainAudioBuffer[i], -80.0f, 0.0f);
+            //mainAudioBuffer[i] = (mainAudioBuffer[i] + 80.0f) / 80.0f;
+        }
     }
 
-    fftw_execute(fftwPlan);
+    //float nyquist = app->format.rate * 0.5f;
+    float minFreq = 40.0f;
+    float maxFreq = 16000.0f;
 
-    for (int i = 0; i < MAIN_AUDIO_BUFFER_LEN; i++) {
-        double real = fftwOut[i][0];
-        double imag = fftwOut[i][1];
-        double magnitude = SDL_sqrt(real * real + imag * imag);
-        mainAudioBuffer[i] = magnitude / FFT_SIZE;
+    float rawBars[BIN_SIZE];
+    float smoothedBars[BIN_SIZE];
+
+    int maxBin = FFT_SIZE / 2 + 1;
+    int nextBin = 1;  // skip DC
+
+    for (int b = 0; b < BIN_SIZE; b++) {
+        float t0 = (float)b / (float)BIN_SIZE;
+        float t1 = (float)(b + 1) / (float)BIN_SIZE;
+
+        float f0 = minFreq * SDL_powf(maxFreq / minFreq, t0);
+        float f1 = minFreq * SDL_powf(maxFreq / minFreq, t1);
+        float centerFreq = 0.5f * (f0 + f1);
+
+        int targetStart = (int)SDL_floorf(f0 * (float)FFT_SIZE / (float)app->format.rate);
+        int targetEnd   = (int)SDL_ceilf (f1 * (float)FFT_SIZE / (float)app->format.rate);
+
+        if (targetStart < 1) targetStart = 1;
+        if (targetEnd < 2) targetEnd = 2;
+
+        if (targetStart > maxBin - 1) targetStart = maxBin - 1;
+        if (targetEnd > maxBin) targetEnd = maxBin;
+
+        /* enforce non-overlapping monotonic ranges */
+        int i0 = targetStart;
+        if (i0 < nextBin) i0 = nextBin;
+
+        int i1 = targetEnd;
+        if (i1 <= i0) i1 = i0 + 1;
+        if (i1 > maxBin) i1 = maxBin;
+
+        if (i0 >= maxBin) {
+            i0 = maxBin - 1;
+            i1 = maxBin;
+        }
+
+        nextBin = i1;
+
+        /* RMS over the band */
+        float accum = 0.0f;
+        int count = 0;
+        for (int i = i0; i < i1; i++) {
+            float v = mainAudioBuffer[i];
+            accum += v * v;
+            count++;
+        }
+
+        float bandValue = (count > 0) ? SDL_sqrtf(accum / (float)count) : 0.0f;
+
+        /*
+            Gentle frequency compensation:
+            - slightly reduce bass dominance
+            - slightly boost mids/highs
+            Keep this subtle.
+        */
+        float weight = SDL_powf((centerFreq + 120.0f) / 1000.0f, 0.22f);
+
+        if (weight < 0.75f) weight = 0.75f;
+        if (weight > 1.35f) weight = 1.8f;
+
+        bandValue *= weight;
+
+        /* Mild dynamic compression for display */
+        rawBars[b] = SDL_powf(bandValue, 0.60f);
+    }
+
+    /* Spatial smoothing */
+    for (int b = 0; b < BIN_SIZE; b++) {
+        float left   = (b > 0) ? rawBars[b - 1] : rawBars[b];
+        float center = rawBars[b];
+        float right  = (b < BIN_SIZE - 1) ? rawBars[b + 1] : rawBars[b];
+
+        smoothedBars[b] = 0.20f * left + 0.60f * center + 0.20f * right;
+    }
+
+    /* Mild per-frame normalization */
+    float maxValue = 1e-6f;
+    for (int b = 0; b < BIN_SIZE; b++) {
+        if (smoothedBars[b] > maxValue) {
+            maxValue = smoothedBars[b];
+        }
+    }
+
+    /*
+        Do not normalize fully to 1.0 every frame,
+        because that can look too twitchy.
+    */
+    float norm = 1.0f / maxValue;
+    float normalizeStrength = 0.65f;
+
+    for (int b = 0; b < BIN_SIZE; b++) {
+        float normalized = smoothedBars[b] * norm;
+        visualizerBars[b] =
+            smoothedBars[b] * (1.0f - normalizeStrength) +
+            normalized * normalizeStrength;
     }
 
     pw_stream_queue_buffer(app->stream, b);
