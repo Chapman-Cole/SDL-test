@@ -87,21 +87,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     meshobject_load_objfile(&FrontObject, RenderObjectPath);
     GPB_submit_all_transfer_buffers();
 
-    //SDL_GPUShader* vertexShader = create_vertex_shader(&STRING("../shaders/vertex.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
-    //SDL_GPUShader* fragmentShader = create_fragment_shader(&STRING("../shaders/fragment.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
-//
-    //GraphicsPipelineFactory pipelineFactory;
-    //graphics_pipeline_factory_init(&pipelineFactory);
-    //graphics_pipeline_factory_append_vertex_buffer_description(&pipelineFactory, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
-    //graphics_pipeline_factory_append_vertex_atribute(&pipelineFactory, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
-    //graphics_pipeline_factory_append_color_target_description_default(&pipelineFactory, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), get_SDL_main_window()));
-    //graphicsPipeline = graphics_pipeline_factory_generate_pipeline(&pipelineFactory, vertexShader, fragmentShader);
-    //graphics_pipeline_factory_destroy(&pipelineFactory);
-//
-    //// Free the vertex and fragment shaders once done creating the graphics pipelines
-    //SDL_ReleaseGPUShader(get_SDL_gpu_device(), vertexShader);
-    //SDL_ReleaseGPUShader(get_SDL_gpu_device(), fragmentShader);
-
     graphics_pipeline_init(&graphicsPipeline);
     graphics_pipeline_append_vertex_buffer_description(&graphicsPipeline, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
     graphics_pipeline_append_vertex_attribute(&graphicsPipeline, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);

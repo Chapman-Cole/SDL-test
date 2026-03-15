@@ -31,19 +31,34 @@ typedef struct ScalableRectangle {
 
 float appTime = 0.0f;
 ScalableRectangle* rectangles = NULL;
-Uint32 rectanglesLen = 10;
-
-SDL_AudioSpec audioSpec;
-Uint8* wavBuffer = NULL;
-Uint32 wavLen = 0;
-SDL_AudioDeviceID audioDeviceID;
-SDL_AudioStream* audioStream;
-SDL_AudioSpec audioDeviceSpec;
+Uint32 rectanglesLen = 128;
 
 GraphicsPipeline graphicsPipeline;
 
-SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+SDL_Thread* audioThread;
+
+// Get the pipewire audio implementation
+#include "FetchSysAudio.c"
+
+MainTInput* tempInput = NULL;
+
+Uint64 perfFrequency = 0;
+Uint64 perfCounterPrev = 0;
+
+float waveformTime = 0.0;
+
+// Zero memory initially
+float prevAudioBuffer[MAIN_AUDIO_BUFFER_LEN] = {0};
+float currAudioBuffer[MAIN_AUDIO_BUFFER_LEN] = {0};
+
+#define WAVEFORM_RESPONSEIVENESS 0.05
+
+float lerp(float a, float b, float t) {
+    return a + t * (b - a);
+}
+
+SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
@@ -90,27 +105,25 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     // Disable VSYNC, if possible (not gauranteed).
     SDL_SetGPUSwapchainParameters(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_IMMEDIATE);
 
-    if (!SDL_LoadWAV("../audio/OrchestralSound.wav", &audioSpec, &wavBuffer, &wavLen)) {
-        SDL_Log("Failed to load wav audio data");
+    tempInput = (MainTInput*)SDL_malloc(sizeof(MainTInput));
+    if (argc > 2) {
+        *tempInput = (MainTInput){.objName = argv[1]};
+    } else {
+        *tempInput = (MainTInput){.objName = "spotify"};
+    }
+    audioThread = SDL_CreateThread(FetchAudioMainT, "AudioMainT", tempInput);
+    if (!audioThread) {
+        SDL_Log("Failed to spawn audio thread\n");
         SDL_Quit();
         exit(-1);
     }
 
-    audioDeviceID = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audioSpec);
+    // The thread will clean itself up
+    SDL_DetachThread(audioThread);
 
-    if (!audioDeviceID) {
-        SDL_Log("Failed to open SDL3 audio device");
-        SDL_Quit();
-        exit(-1);
-    }
+    perfCounterPrev = SDL_GetPerformanceCounter();
+    perfFrequency = SDL_GetPerformanceFrequency();
 
-    SDL_GetAudioDeviceFormat(audioDeviceID, &audioDeviceSpec, NULL);
-
-    audioStream = SDL_CreateAudioStream(&audioSpec, &audioDeviceSpec);
-
-    SDL_PutAudioStreamData(audioStream, wavBuffer, (int)wavLen);
-    SDL_BindAudioStream(audioDeviceID, audioStream);
-    SDL_ResumeAudioDevice(audioDeviceID);
     return SDL_APP_CONTINUE;
 }
 
@@ -123,6 +136,18 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
+    Uint64 perfCounterNow = SDL_GetPerformanceCounter();
+    perfFrequency = SDL_GetPerformanceFrequency();
+    double elapsed = (double)(perfCounterNow - perfCounterPrev) / (double)perfFrequency;
+    perfCounterPrev = perfCounterNow;
+    waveformTime += (float)elapsed;
+
+    if (waveformTime >= WAVEFORM_RESPONSEIVENESS) {
+        SDL_memcpy(prevAudioBuffer, currAudioBuffer, MAIN_AUDIO_BUFFER_LEN * sizeof(float));
+        SDL_memcpy(currAudioBuffer, mainAudioBuffer, MAIN_AUDIO_BUFFER_LEN * sizeof(float));
+        waveformTime = 0.0f;
+    }
+
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
 
     SDL_GPUTexture* swapchainTexture;
@@ -148,6 +173,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     for (int i = 0; i < rectanglesLen; i++) {
         vertexUniformData.xOffset = rectangles[i].xOffset;
         vertexUniformData.xScale = rectangles[i].xScale;
+        vertexUniformData.yScale = 12.0f * SDL_clamp(SDL_fabsf(lerp(prevAudioBuffer[i], currAudioBuffer[i], waveformTime / WAVEFORM_RESPONSEIVENESS)), 0.0f, 1.0f);
         
         fragmentUniformData.color = rectangles[i].color;
 
@@ -163,9 +189,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
-    SDL_DestroyAudioStream(audioStream);
-    SDL_CloseAudioDevice(audioDeviceID);
-    SDL_free(wavBuffer);
+    SDL_free(tempInput);
 
     for (int i = 0; i < rectanglesLen; i++) {
         meshobject_destroy(&rectangles[i].rect);

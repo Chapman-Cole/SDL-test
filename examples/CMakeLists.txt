@@ -62,7 +62,8 @@ include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
 
 if(UNIX)
-    target_link_libraries(${project_name} PRIVATE m stdc++)
+    target_include_directories(${project_name} PRIVATE /usr/include/pipewire-0.3 /usr/include/spa-0.2)
+    target_link_libraries(${project_name} PRIVATE m stdc++ pipewire-0.3 fftw3)
 endif()
 
 # -------------------------------------------------------------------------------------
