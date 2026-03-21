@@ -8,7 +8,7 @@ void set_shader_format(unsigned int shader_format) {
     ShaderFormat = shader_format;
 }
 
-int extract_shader_binding_info(string* spirv_file, SDL_GPUShaderCreateInfo* shaderInfo) {
+int extract_shader_binding_info(string* spirv_file, SDL_GPUShaderCreateInfo* shaderInfo, Uint32** uniformLayoutInfo) {
     // Make sure these values are 0 so the counting later on is accurate
     shaderInfo->num_samplers = 0;
     shaderInfo->num_storage_buffers = 0;

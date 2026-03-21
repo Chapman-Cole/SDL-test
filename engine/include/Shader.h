@@ -21,7 +21,7 @@ void set_shader_format(unsigned int shader_format);
 // fields of the struct using spirv reflect. This is mostly for internal use to the shader compilation api.
 // spirv_file - A pointer to a string containing the spir-v code
 // shaderInfo - A pointer to the shadercreateinfo struct that contains the necessary fields
-int extract_shader_binding_info(string* spirv_file, SDL_GPUShaderCreateInfo* shaderInfo);
+int extract_shader_binding_info(string* spirv_file, SDL_GPUShaderCreateInfo* shaderInfo, Uint32** uniformLayoutInfo);
 
 // Compiles glsl source to SPIR-V code
 // glslSource - A pointer to a string containing the glsl source code
