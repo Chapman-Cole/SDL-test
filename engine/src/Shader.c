@@ -1,82 +1,10 @@
 #include "Shader.h"
 #include "Strings.h"
 #include "SDLDevice.h"
-#include "SPIRV-Reflect/spirv_reflect.h"
 #include <shaderc/shaderc.h>
 
 void set_shader_format(unsigned int shader_format) {
     ShaderFormat = shader_format;
-}
-
-int extract_shader_binding_info(string* spirv_file, SDL_GPUShaderCreateInfo* shaderInfo, Uint32** uniformLayoutInfo) {
-    // Make sure these values are 0 so the counting later on is accurate
-    shaderInfo->num_samplers = 0;
-    shaderInfo->num_storage_buffers = 0;
-    shaderInfo->num_storage_textures = 0;
-    shaderInfo->num_uniform_buffers = 0;
-
-    // Extract uniform information by creating spvreflect shader module
-    SpvReflectShaderModule module;
-    SpvReflectResult result = spvReflectCreateShaderModule(spirv_file->len, spirv_file->str, &module);
-
-    Uint32 count = 0;
-    if (result != SPV_REFLECT_RESULT_SUCCESS) {
-        SDL_Log("Failed to properly initialize SPIRV-Reflect module\n");
-        SDL_Quit();
-        exit(-1);
-    }
-
-    // Counts the number of descriptor bindings
-    result = spvReflectEnumerateDescriptorBindings(&module, &count, NULL);
-    if (result != SPV_REFLECT_RESULT_SUCCESS) {
-        SDL_Log("Failed to retrieve spirv bindings count\n");
-        SDL_Quit();
-        exit(-1);
-    }
-
-    // Extract the descriptor set bindings (info on things like number of uniform buffer objects and so on)
-    SpvReflectDescriptorBinding** bindings = (SpvReflectDescriptorBinding**)SDL_malloc(count * sizeof(SpvReflectDescriptorBinding*));
-    if (bindings == NULL) {
-        SDL_Log("Failed to allocate memory for spirv bindings.");
-        SDL_Quit();
-        exit(-1);
-    }
-
-    // Fetches pointers to the modules descriptor buffers, and stores them in bindings pointer
-    result = spvReflectEnumerateDescriptorBindings(&module, &count, bindings);
-    if (result != SPV_REFLECT_RESULT_SUCCESS) {
-        SDL_Log("Failed to enumerate through spirv descriptor bindings.\n");
-        SDL_Quit();
-        exit(-1);
-    }
-
-    // Iterates through the descriptor set to count the number of uniform buffers
-    for (Uint32 i = 0; i < count; i++) {
-        SpvReflectDescriptorBinding* binding = bindings[i];
-        if (
-            binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER 
-            || binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-                shaderInfo->num_uniform_buffers++;
-        } else if (
-            binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER
-            || binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-                shaderInfo->num_samplers++;
-        } else if (
-            binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER
-            || binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
-                shaderInfo->num_storage_buffers++;
-        } else if (
-            binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE
-            || binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER) {
-                shaderInfo->num_storage_textures++;
-        }
-    }
-
-    // Frees up the memory
-    SDL_free(bindings);
-    spvReflectDestroyShaderModule(&module);
-
-    return 0;
 }
 
 int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* spirvOut, string* entry_point, Uint32 shaderType) {
@@ -108,7 +36,7 @@ int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* sp
     return 0;
 }
 
-SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 sourceType) {
+SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 sourceType, ShaderUniformLayout* shaderLayout) {
     SDL_GPUShaderCreateInfo vertexInfo = {0};
     vertexInfo.entrypoint = entry_point->str;
     vertexInfo.format = ShaderFormat; // loading .spv shaders
@@ -145,7 +73,11 @@ SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 
     vertexInfo.code = (Uint8*)spirv_file.str;
     vertexInfo.code_size = spirv_file.len / sizeof(char);
 
-    extract_shader_binding_info(&spirv_file, &vertexInfo);
+    extract_shader_binding_info(&spirv_file, shaderLayout);
+    vertexInfo.num_samplers = shaderLayout->num_samplers;
+    vertexInfo.num_storage_buffers = shaderLayout->num_storage_buffers;
+    vertexInfo.num_storage_textures = shaderLayout->num_storage_textures;
+    vertexInfo.num_uniform_buffers = shaderLayout->num_uniform_buffers;
 
     SDL_GPUShader* vertexShader = SDL_CreateGPUShader(get_SDL_gpu_device(), &vertexInfo);
 
@@ -164,7 +96,7 @@ SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 
     return vertexShader;
 }
 
-SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint32 sourceType) {
+SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint32 sourceType, ShaderUniformLayout* shaderLayout) {
     SDL_GPUShaderCreateInfo fragmentInfo = {0};
     fragmentInfo.entrypoint = entry_point->str;
     fragmentInfo.format = ShaderFormat; // loading .spv shaders
@@ -201,7 +133,11 @@ SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint3
     fragmentInfo.code = (Uint8*)spirv_file.str;
     fragmentInfo.code_size = spirv_file.len / sizeof(char);
 
-    extract_shader_binding_info(&spirv_file, &fragmentInfo);
+    extract_shader_binding_info(&spirv_file, shaderLayout);
+    fragmentInfo.num_samplers = shaderLayout->num_samplers;
+    fragmentInfo.num_storage_buffers = shaderLayout->num_storage_buffers;
+    fragmentInfo.num_storage_textures = shaderLayout->num_storage_textures;
+    fragmentInfo.num_uniform_buffers = shaderLayout->num_uniform_buffers;
 
     SDL_GPUShader* fragmentShader = SDL_CreateGPUShader(get_SDL_gpu_device(), &fragmentInfo);
 

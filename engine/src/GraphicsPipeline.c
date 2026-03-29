@@ -22,6 +22,9 @@ int graphics_pipeline_init(GraphicsPipeline* pipeline) {
     pipeline->factory->colorTargetDescriptionsLen = 0;
     pipeline->factory->colorTargetDescriptions = NULL;
 
+    shader_uniform_layout_init(&pipeline->vertexLayout);
+    shader_uniform_layout_init(&pipeline->fragmentLayout);
+
     return 0;
 }
 
@@ -50,6 +53,10 @@ int graphics_pipeline_destroy(GraphicsPipeline* pipeline) {
     pipeline->graphicsPipeline = NULL;
     pipeline->shaders[0] = NULL;
     pipeline->shaders[1] = NULL;
+
+    shader_uniform_layout_destroy(&pipeline->vertexLayout);
+    shader_uniform_layout_destroy(&pipeline->fragmentLayout);
+
     return 0;
 }
 
@@ -151,12 +158,12 @@ int graphics_pipeline_append_color_target_description_default(GraphicsPipeline* 
 }
 
 int graphics_pipeline_attach_vertex_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType) {
-    pipeline->shaders[0] = create_vertex_shader(source, entry_point, sourceType);
+    pipeline->shaders[0] = create_vertex_shader(source, entry_point, sourceType, &pipeline->vertexLayout);
     return 0;
 }
 
 int graphics_pipeline_attach_fragment_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType) {
-    pipeline->shaders[1] = create_fragment_shader(source, entry_point, sourceType);
+    pipeline->shaders[1] = create_fragment_shader(source, entry_point, sourceType, &pipeline->fragmentLayout);
     return 0;
 }
 

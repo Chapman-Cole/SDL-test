@@ -13,8 +13,7 @@
 // Later on I would like to add some sort of system for attaching
 // Mesh structs to a specific graphics pipeline so that way it can 
 // be shaded according to the shaders in the graphics pipeline
-typedef struct Mesh
-{
+typedef struct Mesh {
     SDL_GPUBuffer* vertexBuffer;
     SDL_GPUBuffer* indexBuffer;
 

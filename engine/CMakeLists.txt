@@ -12,7 +12,7 @@ project(engine LANGUAGES C CXX)
 # >>>>>>>>>>>>>>>>>>>>>>> OBJECT LIB COMPILATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 # Compile the files once to an object library so the static and dynamic link versions can be built later on
-add_library(EngineObjectLib OBJECT src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c src/MeshObject.c src/Window.c ../external/SPIRV-Reflect/spirv_reflect.c)
+add_library(EngineObjectLib OBJECT ../external/SPIRV-Reflect/spirv_reflect.c src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c src/MeshObject.c src/Window.c  src/ShaderUniformLayout.c)
 
 # Provide the object library with the necessary include directories for compilation
 target_include_directories(EngineObjectLib PRIVATE "include" ../external ../external/SPIRV-Headers)

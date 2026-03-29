@@ -9,6 +9,7 @@
 #include "Strings.h"
 #include <cglm/cglm.h>
 #include "Window.h"
+#include "ShaderUniformLayout.h"
 
 // To compile with debug symbols on linux, do cmake -DCMAKE_BUILD_TYPE=Debug ..
 // For debug symbols on windows, cmake --build . --config Debug
@@ -94,6 +95,12 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     graphics_pipeline_attach_vertex_shader(&graphicsPipeline, &STRING("../shaders/vertex.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
     graphics_pipeline_attach_fragment_shader(&graphicsPipeline, &STRING("../shaders/fragment.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
     graphics_pipeline_generate(&graphicsPipeline);
+
+    SDL_Log("Vertex Uniform Layout:\n");
+    shader_uniform_elements_print(&graphicsPipeline.vertexLayout);
+
+    SDL_Log("\nFragment Uniform Layout:\n");
+    shader_uniform_elements_print(&graphicsPipeline.fragmentLayout);
 
     SDL_SetGPUSwapchainParameters(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_IMMEDIATE);
 

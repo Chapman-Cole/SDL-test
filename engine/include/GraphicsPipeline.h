@@ -4,10 +4,7 @@
 #include <SDL3/SDL.h>
 #include "Strings.h"
 #include "Window.h"
-
-typedef enum UniformLayoutTypes {
-    DEFINE_LATER
-};
+#include "ShaderUniformLayout.h"
 
 typedef struct GraphicsPipelineFactory {
     SDL_GPUShader* vertex_shader;
@@ -30,10 +27,10 @@ typedef struct GraphicsPipeline {
     // The first slot is for the vertex shader, and
     // the second slot is for the fragment shader
     SDL_GPUShader* shaders[2];
-
-    // SDL3 only allows a maximum of 4 unique uniform buffers per shader stage (vertex and fragment)
-    Uint32* vertexUniformLayoutInfo[4];
-    Uint32* fragmentUniformLayoutInfo[4];
+    
+    // The uniform layout info for the vertex shader and fragment shader
+    ShaderUniformLayout vertexLayout;
+    ShaderUniformLayout fragmentLayout;
 } GraphicsPipeline;
 
 // Must be called directly after declaration of a graphics pipeline to 
