@@ -8,42 +8,18 @@
 
 typedef enum UniformShaderTypes {
     // Primitive data types
-    UNIFORM_SHADER_TYPE_BOOL,
     UNIFORM_SHADER_TYPE_INT,
     UNIFORM_SHADER_TYPE_UINT,
     UNIFORM_SHADER_TYPE_FLOAT,
-    UNIFORM_SHADER_TYPE_DOUBLE,
 
-    // Vector types
-    UNIFORM_SHADER_TYPE_BVEC,
+    // Vector types (can be of size 2, 3, or 4)
     UNIFORM_SHADER_TYPE_IVEC,
     UNIFORM_SHADER_TYPE_UVEC,
     UNIFORM_SHADER_TYPE_VEC,
-    UNIFORM_SHADER_TYPE_DVEC,
 
     // Matrix types (for mat nxm, n is the number of columns and m is the number of rows (opposite of mathematical convention))
     // matrices consist of only floats or doubles
     UNIFORM_SHADER_TYPE_MAT,
-    UNIFORM_SHADER_TYPE_DMAT,
-
-    // This handles all of the array types
-    // This handles the primitive array types
-    UNIFORM_SHADER_TYPE_BOOL_ARRAY,
-    UNIFORM_SHADER_TYPE_INT_ARRAY,
-    UNIFORM_SHADER_TYPE_UINT_ARRAY,
-    UNIFORM_SHADER_TYPE_FLOAT_ARRAY,
-    UNIFORM_SHADER_TYPE_DOUBLE_ARRAY,
-
-    // This handles the vector array types. Something like vec3[4]
-    UNIFORM_SHADER_TYPE_BVEC_ARRAY,
-    UNIFORM_SHADER_TYPE_IVEC_ARRAY,
-    UNIFORM_SHADER_TYPE_UVEC_ARRAY,
-    UNIFORM_SHADER_TYPE_VEC_ARRAY,
-    UNIFORM_SHADER_TYPE_DVEC_ARRAY,
-
-    // This handles the matrix array types
-    UNIFORM_SHADER_TYPE_MAT_ARRAY,
-    UNIFORM_SHADER_TYPE_DMAT_ARRAY,
 
     // This is for when an unsupported type is come across
     UNIFORM_SHADER_TYPE_UNSUPPORTED
@@ -56,17 +32,26 @@ typedef struct UniformElementType {
     // one of the types outlined in the UniformShaderTypes enum
     uint8_t type;
 
-    // The size of the element in bytes
-    uint32_t sizeBytes;
-
-    // The size of the element accounting for padding in bytes
-    uint32_t sizePaddedBytes;
-
     // The specific uniform buffer this element belongs in
     uint32_t bindingNum;
 
     // The offset into the uniform buffer
     uint32_t offset;
+
+    // The number of columns if it is a matrix
+    // uint8_t since cannot have more than 4 columns
+    // in a glsl matrix
+    uint8_t numCols;
+
+    // The number of rows if it is a matrix
+    // uint8_t since cannot have more than 4 rows
+    // in a glsl matrix
+    uint8_t numRows;
+
+    // Refers to the size of a vector
+    // uint8_t since cannot have more than 4 components
+    // in a glsl vector
+    uint8_t vecLen;
 
     // The name extracted from spirv
     string name;

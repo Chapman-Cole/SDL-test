@@ -56,7 +56,9 @@ static uint8_t extract_spirv_type_info(const SpvReflectTypeDescription* typeDesc
         typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_REF == true ||
         typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT == true ||
         typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_UNDEFINED == true ||
-        typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_VOID == true
+        typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_VOID == true ||
+        typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY ||
+        typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_BOOL
     ) {
         return UNIFORM_SHADER_TYPE_UNSUPPORTED;
     }
@@ -74,24 +76,12 @@ static uint8_t extract_spirv_type_info(const SpvReflectTypeDescription* typeDesc
                 return UNIFORM_SHADER_TYPE_VEC;
             } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX) {
                 return UNIFORM_SHADER_TYPE_MAT;
-            } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY) {
-                return UNIFORM_SHADER_TYPE_FLOAT_ARRAY;
             } else {
                 return UNIFORM_SHADER_TYPE_FLOAT;
             }
         } else if (bitWidth == 64) {
-            // This is the double case. That means we now have to check whether it is a
-            // a double array, a double vector, a double matrix, or simply a double if none of the other apply
-
-            if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR) {
-                return UNIFORM_SHADER_TYPE_DVEC;
-            } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX) {
-                return UNIFORM_SHADER_TYPE_DMAT;
-            } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY) {
-                return UNIFORM_SHADER_TYPE_DOUBLE_ARRAY;
-            } else {
-                return UNIFORM_SHADER_TYPE_DOUBLE;
-            }
+            // This is the double case, which is unsupported.
+            return UNIFORM_SHADER_TYPE_UNSUPPORTED;
         }
     } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_INT) {
         // Now branch off depending on if it is a signed or unsigned integer
@@ -100,27 +90,15 @@ static uint8_t extract_spirv_type_info(const SpvReflectTypeDescription* typeDesc
         if (isSigned) {
             if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR) {
                 return UNIFORM_SHADER_TYPE_VEC;
-            } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY) {
-                return UNIFORM_SHADER_TYPE_INT_ARRAY;
             } else {
                 return UNIFORM_SHADER_TYPE_INT;
             }
         } else {
             if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR) {
                 return UNIFORM_SHADER_TYPE_UVEC;
-            } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY) {
-                return UNIFORM_SHADER_TYPE_UINT_ARRAY;
             } else {
                 return UNIFORM_SHADER_TYPE_UINT;
             }
-        }
-    } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_BOOL) {
-        if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR) {
-            return UNIFORM_SHADER_TYPE_BVEC;
-        } else if (typeDesc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY) {
-            return UNIFORM_SHADER_TYPE_BOOL_ARRAY;
-        } else {
-            return UNIFORM_SHADER_TYPE_BOOL;
         }
     }
     
@@ -150,9 +128,10 @@ static int extract_spirv_element_info(ShaderUniformLayout* shaderLayout, const S
                 .bindingNum = bindingNum,
                 .name = elementName,
                 .offset = block->offset,
-                .sizeBytes = block->size,
-                .sizePaddedBytes = block->padded_size,
-                .type = extract_spirv_type_info(block->type_description)
+                .type = extract_spirv_type_info(block->type_description),
+                .numCols = block->type_description->traits.numeric.matrix.column_count,
+                .numRows = block->type_description->traits.numeric.matrix.row_count,
+                .vecLen = block->type_description->traits.numeric.vector.component_count,
             }
         );
     } else {
@@ -273,10 +252,6 @@ int shader_uniform_layout_append_element(ShaderUniformLayout* shaderLayout, Unif
 
 const char* shader_uniform_element_type_get_name(uint8_t elementType) {
     switch (elementType) {
-    case UNIFORM_SHADER_TYPE_BOOL:
-        return "bool";
-        break;
-
     case UNIFORM_SHADER_TYPE_INT:
         return "int";
         break;
@@ -287,14 +262,6 @@ const char* shader_uniform_element_type_get_name(uint8_t elementType) {
     
     case UNIFORM_SHADER_TYPE_FLOAT:
         return "float";
-        break;
-    
-    case UNIFORM_SHADER_TYPE_DOUBLE:
-        return "double";
-        break;
-    
-    case UNIFORM_SHADER_TYPE_BVEC:
-        return "bvec";
         break;
     
     case UNIFORM_SHADER_TYPE_IVEC:
@@ -308,65 +275,9 @@ const char* shader_uniform_element_type_get_name(uint8_t elementType) {
     case UNIFORM_SHADER_TYPE_VEC:
         return "vec";
         break;
-
-    case UNIFORM_SHADER_TYPE_DVEC:
-        return "dvec";
-        break;
     
     case UNIFORM_SHADER_TYPE_MAT:
         return "mat";
-        break;
-
-    case UNIFORM_SHADER_TYPE_DMAT:
-        return "dmat";
-        break;
-
-    case UNIFORM_SHADER_TYPE_BOOL_ARRAY:
-        return "bool[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_INT_ARRAY:
-        return "int[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_UINT_ARRAY:
-        return "uint[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_FLOAT_ARRAY:
-        return "float[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_DOUBLE_ARRAY:
-        return "double[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_BVEC_ARRAY:
-        return "bvec[]";
-        break;
-    
-    case UNIFORM_SHADER_TYPE_IVEC_ARRAY:
-        return "ivec[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_UVEC_ARRAY:
-        return "uvec[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_VEC_ARRAY:
-        return "vec[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_DVEC_ARRAY:
-        return "dvec[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_MAT_ARRAY:
-        return "mat[]";
-        break;
-
-    case UNIFORM_SHADER_TYPE_DMAT_ARRAY:
-        return "dmat[]";
         break;
     
     default:
@@ -378,13 +289,12 @@ const char* shader_uniform_element_type_get_name(uint8_t elementType) {
 void shader_uniform_elements_print(ShaderUniformLayout* shaderLayout) {
     for (int i = 0; i < shaderLayout->uniformElementsLen; i++) {
         SDL_Log(
-            "name=%s type=%s size=%u padded=%u offset=%u binding=%u\n",
+            "name=%s type=%s offset=%u binding=%u len=%u\n",
             shaderLayout->uniformElements[i].name.str,
             shader_uniform_element_type_get_name(shaderLayout->uniformElements[i].type),
-            shaderLayout->uniformElements[i].sizeBytes,
-            shaderLayout->uniformElements[i].sizePaddedBytes,
             shaderLayout->uniformElements[i].offset,
-            shaderLayout->uniformElements[i].bindingNum
+            shaderLayout->uniformElements[i].bindingNum,
+            shaderLayout->uniformElements[i].vecLen
         );
     }
 }
