@@ -57,6 +57,9 @@ int graphics_pipeline_destroy(GraphicsPipeline* pipeline) {
     shader_uniform_layout_destroy(&pipeline->vertexLayout);
     shader_uniform_layout_destroy(&pipeline->fragmentLayout);
 
+    uniform_buffer_destroy(&pipeline->vertexFrameData);
+    uniform_buffer_destroy(&pipeline->fragmentFrameData);
+
     return 0;
 }
 
@@ -159,11 +162,17 @@ int graphics_pipeline_append_color_target_description_default(GraphicsPipeline* 
 
 int graphics_pipeline_attach_vertex_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType) {
     pipeline->shaders[0] = create_vertex_shader(source, entry_point, sourceType, &pipeline->vertexLayout);
+
+    uniform_buffer_create(&pipeline->vertexFrameData, &pipeline->vertexLayout, UNIFORM_VERTEX_USER_FRAME_DATA_SLOT);
+
     return 0;
 }
 
 int graphics_pipeline_attach_fragment_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType) {
     pipeline->shaders[1] = create_fragment_shader(source, entry_point, sourceType, &pipeline->fragmentLayout);
+
+    uniform_buffer_create(&pipeline->fragmentFrameData, &pipeline->fragmentLayout, UNIFORM_FRAGMENT_USER_FRAME_DATA_SLOT);
+
     return 0;
 }
 
@@ -199,4 +208,34 @@ int graphics_pipeline_generate(GraphicsPipeline* pipeline) {
     pipeline->shaders[0] = NULL;
     pipeline->shaders[1] = NULL;
     return 0;
+}
+
+GPVertUniformElementHandle graphics_pipeline_vertex_get_handle(GraphicsPipeline* pipeline, string* name) {
+    for (uint32_t i = 0; i < pipeline->vertexLayout.uniformElementsLen; i++) {
+        if (
+            // The binding/slot number that corresponds to user provided frame data
+            // for the vertex shader is 2 according the the convention I came up with
+            pipeline->vertexLayout.uniformElements[i].bindingNum == 2 ||
+            string_compare(name, &pipeline->vertexLayout.uniformElements[i].name) == true
+        ) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+GPFragUniformElementHandle graphics_pipeline_fragment_get_handle(GraphicsPipeline* pipeline, string* name) {
+    for (uint32_t i = 0; i < pipeline->fragmentLayout.uniformElementsLen; i++) {
+        if (
+            // The binding/slot number that corresponds to user provided frame data
+            // for the fragment shader is 1 according to the convention I came up with
+            pipeline->fragmentLayout.uniformElements[i].bindingNum == 1 ||
+            string_compare(name, &pipeline->fragmentLayout.uniformElements[i].name) == true
+        ) {
+            return i;
+        }
+    }
+
+    return -1;
 }

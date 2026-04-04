@@ -11,6 +11,11 @@ int shader_uniform_layout_init(ShaderUniformLayout* shaderLayout) {
     shaderLayout->uniformElementsLen = 0;
     shaderLayout->uniformElementsCapacity = 0;
 
+    shaderLayout->bufferSizes[0] = 0;
+    shaderLayout->bufferSizes[1] = 0;
+    shaderLayout->bufferSizes[2] = 0;
+    shaderLayout->bufferSizes[3] = 0;
+
     return 0;
 }
 
@@ -198,7 +203,7 @@ int extract_shader_binding_info(string* spirv_file, ShaderUniformLayout* shaderL
                 const SpvReflectBlockVariable* block = &binding->block;
 
                 // This will get the total size of the buffer
-                shaderLayout->bufferSizes[shaderLayout->num_uniform_buffers] = block->size;
+                shaderLayout->bufferSizes[binding->binding] = block->size;
                 shaderLayout->num_uniform_buffers++;
 
                 // This is just some debug info stuff

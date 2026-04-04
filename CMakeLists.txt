@@ -14,7 +14,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib$<0:>")
 option(USE_STATIC_ENGINE "Use the static library version of the engine (off by default)" OFF)
 
 # Set this to true in order to compile with asan enabled
-set(ASAN_ON FALSE)
+set(ASAN_ON TRUE)
 
 if(ASAN_ON)
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")

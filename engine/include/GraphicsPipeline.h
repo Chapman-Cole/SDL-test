@@ -5,6 +5,7 @@
 #include "Strings.h"
 #include "Window.h"
 #include "ShaderUniformLayout.h"
+#include "UniformBuffer.h"
 
 typedef struct GraphicsPipelineFactory {
     SDL_GPUShader* vertex_shader;
@@ -31,7 +32,15 @@ typedef struct GraphicsPipeline {
     // The uniform layout info for the vertex shader and fragment shader
     ShaderUniformLayout vertexLayout;
     ShaderUniformLayout fragmentLayout;
+
+    // Uniform data that is consistent across the entire frame, as in the same
+    // for all objects using this particular graphics pipeline
+    UniformBuffer vertexFrameData;
+    UniformBuffer fragmentFrameData;
 } GraphicsPipeline;
+
+typedef int32_t GPVertUniformElementHandle;
+typedef int32_t GPFragUniformElementHandle;
 
 // Must be called directly after declaration of a graphics pipeline to 
 // properly initialize it
@@ -90,5 +99,49 @@ int graphics_pipeline_attach_fragment_shader(GraphicsPipeline* pipeline, string*
 // Uses the specified configurations to generate the internal SDL graphics pipeline
 // This makes it ready for use with rendering. 
 int graphics_pipeline_generate(GraphicsPipeline* pipeline);
+
+// Returns an index (a GPVertUniformElementHandle) of the specified element with the given name
+// in slot 2 (binding = 2) as defined by the convention for the engine for user frame data in the vertex shader
+GPVertUniformElementHandle graphics_pipeline_vertex_get_handle(GraphicsPipeline* pipeline, string* name);
+
+// Returns an index (a GPFragUniformElementHandle) of the specified element with the given name
+// in slot 1 (binding = 1) as defined by the convention for the engine for user frame data in the fragment shader
+GPFragUniformElementHandle graphics_pipeline_fragment_get_handle(GraphicsPipeline* pipeline, string* name);
+
+// #####################################################################
+// # Vulkan std140 imposes strict alignment and padding restrictions,  #
+// # meaning that it is highly inefficient to use arrays with it.      #
+// # Consequently, I will not be providing any functions to use arrays #
+// # with uniforms due to the severe memory inefficiency, among other  #
+// # associated technical challenges.                                  #
+// #####################################################################
+
+// ###############################
+// # Vertex Frame Data Accessors #
+// ###############################
+
+// <<<<<<<<<<<<<<<<<< Primitives >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+int32_t graphics_pipeline_vertex_get_int(GraphicsPipeline* pipeline, GPVertUniformElementHandle handle);
+
+uint32_t graphics_pipeline_vertex_get_uint(GraphicsPipeline* pipeline, GPVertUniformElementHandle handle);
+
+float graphics_pipeline_vertex_get_float(GraphicsPipeline* pipeline, GPVertUniformElementHandle handle);
+
+// <<<<<<<<<<<<<<<<<<< Vector Types >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+const int32_t* graphics_pipeline_vertex_get_ivec(GraphicsPipeline* pipeline, GPVertUniformElementHandle handle, uint32_t* len);
+
+const uint32_t* graphics_pipeline_vertex_get_uvec(GraphicsPipeline* pipeline, GPVertUniformElementHandle handle, uint32_t* len);
+
+const float* graphics_pipeline_vertex_get_vec(GraphicsPipeline* pipeline, GPVertUniformElementHandle handle, uint32_t* len);
+
+// <<<<<<<<<<<<<<<<<< Matrix Type >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// Matrices are stored in memory in column-major format, meaning the
+// columns are lined up contigously in memory
+
+const float* graphics_pipeline_vertex_get_mat(GraphicsPipeline* pipeline, GPVertUniformElementHandle handle, uint32_t* numCols, uint32_t* numRows);
+
+// ---------------------------------------------------------------------------
 
 #endif
