@@ -210,7 +210,7 @@ int graphics_pipeline_generate(GraphicsPipeline* pipeline) {
     return 0;
 }
 
-GPVertUniformElementHandle graphics_pipeline_vertex_get_handle(GraphicsPipeline* pipeline, string* name) {
+UBElementHandle graphics_pipeline_vertex_get_handle(GraphicsPipeline* pipeline, string* name) {
     for (uint32_t i = 0; i < pipeline->vertexLayout.uniformElementsLen; i++) {
         if (
             // The binding/slot number that corresponds to user provided frame data
@@ -218,14 +218,17 @@ GPVertUniformElementHandle graphics_pipeline_vertex_get_handle(GraphicsPipeline*
             pipeline->vertexLayout.uniformElements[i].bindingNum == 2 ||
             string_compare(name, &pipeline->vertexLayout.uniformElements[i].name) == true
         ) {
-            return i;
+            return (UBElementHandle){
+                .index = i,
+                .shaderType = UNIFORM_BUFFER_VERTEX
+            };
         }
     }
 
-    return -1;
+    return INVALID_UNIFORM_BUFFER_ELEMENT_HANDLE;
 }
 
-GPFragUniformElementHandle graphics_pipeline_fragment_get_handle(GraphicsPipeline* pipeline, string* name) {
+UBElementHandle graphics_pipeline_fragment_get_handle(GraphicsPipeline* pipeline, string* name) {
     for (uint32_t i = 0; i < pipeline->fragmentLayout.uniformElementsLen; i++) {
         if (
             // The binding/slot number that corresponds to user provided frame data
@@ -233,9 +236,12 @@ GPFragUniformElementHandle graphics_pipeline_fragment_get_handle(GraphicsPipelin
             pipeline->fragmentLayout.uniformElements[i].bindingNum == 1 ||
             string_compare(name, &pipeline->fragmentLayout.uniformElements[i].name) == true
         ) {
-            return i;
+            return (UBElementHandle){
+                .index = i,
+                .shaderType = UNIFORM_BUFFER_FRAGMENT
+            };
         }
     }
 
-    return -1;
+    return INVALID_UNIFORM_BUFFER_ELEMENT_HANDLE;
 }
