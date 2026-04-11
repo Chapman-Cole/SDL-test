@@ -25,6 +25,8 @@ int graphics_pipeline_init(GraphicsPipeline* pipeline) {
     shader_uniform_layout_init(&pipeline->vertexLayout);
     shader_uniform_layout_init(&pipeline->fragmentLayout);
 
+    pipeline->id = atomic_fetch_add(&graphics_pipeline_idCount, 1);
+
     return 0;
 }
 

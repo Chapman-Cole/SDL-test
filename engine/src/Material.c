@@ -1,6 +1,8 @@
 #include "Material.h"
+#include <stdatomic.h>
 
 int material_create(Material* mat, GraphicsPipeline* pipeline) {
+    mat->id = atomic_fetch_add(&mat_idCount, 1);
     uniform_buffer_create(&mat->uniform, &pipeline->fragmentLayout, UNIFORM_FRAGMENT_MATERIAL_SLOT);
     return 0;
 }

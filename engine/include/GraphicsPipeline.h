@@ -6,6 +6,9 @@
 #include "Window.h"
 #include "ShaderUniformLayout.h"
 #include "UniformBuffer.h"
+#include <stdatomic.h>
+
+static _Atomic(uint32_t) graphics_pipeline_idCount = 0;
 
 typedef struct GraphicsPipelineFactory {
     SDL_GPUShader* vertex_shader;
@@ -37,6 +40,8 @@ typedef struct GraphicsPipeline {
     // for all objects using this particular graphics pipeline
     UniformBuffer vertexFrameData;
     UniformBuffer fragmentFrameData;
+
+    uint32_t id;
 } GraphicsPipeline;
 
 // Must be called directly after declaration of a graphics pipeline to 

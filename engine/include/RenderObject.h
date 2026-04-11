@@ -5,6 +5,7 @@
 #include "Material.h"
 #include "UniformBuffer.h"
 #include "cglm/cglm.h"
+#include "MeshObject.h"
 
 // Interposes a cglm and an anonymous struct with 3 floats
 // to provide 2 different ways of accessing the same data
@@ -22,13 +23,13 @@ typedef union RenderObjectVector3 {
 typedef struct RenderObject {
     GraphicsPipeline* pipeline;
     Material* material;
+    Mesh mesh;
 
     // The object specific uniforms
     UniformBuffer vertexUniform;
     UniformBuffer fragmentUniform;
 
     RenderObjectVector3 position;
-    RenderObjectVector3 rotation;
 
     // This is mostly used internally for rotations
     versor quaternion;

@@ -47,7 +47,7 @@ void meshobject_load_manual(Mesh* mesh, float* vertices, Uint32 vertexSize, Uint
 void meshobject_load_objfile(Mesh* mesh, string path);
 
 // Binds the mesh data so it is prepped for rendering, and then renders it
-void meshobject_render(Mesh* mesh, SDL_GPURenderPass* renderPass);
+// void meshobject_render(Mesh* mesh, SDL_GPURenderPass* renderPass);
 
 
 
