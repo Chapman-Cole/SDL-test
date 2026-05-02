@@ -199,7 +199,6 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
     string_free(&file);
 }
 
-/*
 void meshobject_render(Mesh* mesh, SDL_GPURenderPass* renderPass) {
     // bind the vertex buffer
     SDL_GPUBufferBinding bufferBindings[1];
@@ -215,4 +214,3 @@ void meshobject_render(Mesh* mesh, SDL_GPURenderPass* renderPass) {
 
     SDL_DrawGPUIndexedPrimitives(renderPass, mesh->numIndices, 1, 0, 0, 0);
 }
-*/

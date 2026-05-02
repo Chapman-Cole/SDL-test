@@ -14,6 +14,11 @@ project(engine LANGUAGES C CXX)
 # Compile the files once to an object library so the static and dynamic link versions can be built later on
 add_library(EngineObjectLib OBJECT ../external/SPIRV-Reflect/spirv_reflect.c src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c src/MeshObject.c src/Window.c  src/ShaderUniformLayout.c src/Material.c src/UniformBuffer.c)
 
+# MSVC can have issues when trying to compile using stdatomics
+if(MSVC)
+    target_compile_options(EngineObjectLib PRIVATE /experimental:c11atomics)
+endif()
+
 # Provide the object library with the necessary include directories for compilation
 target_include_directories(EngineObjectLib PRIVATE "include" ../external ../external/SPIRV-Headers)
 

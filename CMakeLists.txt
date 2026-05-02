@@ -11,10 +11,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<0:>")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib$<0:>")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib$<0:>")
 
+#Ensure c11 is used so that stdatomics is supported
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
 option(USE_STATIC_ENGINE "Use the static library version of the engine (off by default)" OFF)
 
 # Set this to true in order to compile with asan enabled
-set(ASAN_ON TRUE)
+set(ASAN_ON FALSE)
 
 if(ASAN_ON)
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
