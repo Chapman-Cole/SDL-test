@@ -7,28 +7,37 @@
 #include "Material.h"
 #include "MeshObject.h"
 #include "RenderObject.h"
+#include "Camera.h"
 
-typedef enum RenderQueueItemType {
-    RENDER_QUEUE_ITEM_GRAPHICS_PIPELINE,
-    RENDER_QUEUE_ITEM_MATERIAL,
-    RENDER_QUEUE_ITEM_OBJECT
-} RenderQueueItemType;
+// The high/top 32 bits of the high key are dedicated for the graphics pipeline id,
+// the low/bottom 32 bits of the high key are dedicated for the material id.
+// The high/top 32 bits of the 
+typedef struct RenderItemSortKey {
+    uint64_t low;
+    uint64_t high;
+} RenderItemSortKey;
+
+typedef struct RenderItem {
+    RenderItemSortKey sortKey;
+    GraphicsPipeline* pipeline;
+    RenderObject* object;
+    Material* material;
+} RenderItem;
+
 
 // This will function like an abstract syntax tree
 typedef struct RenderQueue {
-    RenderQueue* renderItems;
+    RenderItem* renderItems;
     uint32_t len;
     uint32_t capacity;
-    uint8_t type;
-
-    union {
-        GraphicsPipeline* pipeline;
-        Material* material;
-        RenderObject* object;
-    };
+    Camera cam;
 } RenderQueue;
 
-int render_queue_init(RenderQueue* queue);
+typedef enum RenderQueueErrors {
+    RENDER_QUEUE_ERROR_SWAPCHAIN_FAILURE = -1
+} RenderQueueErrors;
+
+int render_queue_init(RenderQueue* queue, Camera* cam);
 
 int render_queue_destroy(RenderQueue* queue);
 
