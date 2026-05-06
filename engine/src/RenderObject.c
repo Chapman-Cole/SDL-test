@@ -10,6 +10,8 @@ int render_object_create(RenderObject* object, GraphicsPipeline* pipeline, Mater
     uniform_buffer_create(&object->vertexUniform, &pipeline->vertexLayout, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT);
     uniform_buffer_create(&object->fragmentUniform, &pipeline->fragmentLayout, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT);
 
+    meshobject_init(&object->mesh);
+
     return 0;
 }
 
@@ -23,6 +25,8 @@ int render_object_destroy(RenderObject* object) {
     object->position.y = 0;
     object->position.z = 0;
     glm_quat_identity(object->quaternion);
+
+    meshobject_destroy(&object->mesh);
 
     return 0;
 }

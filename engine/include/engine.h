@@ -8,5 +8,7 @@
 #include "Shader.h"
 #include "Strings.h"
 #include "Window.h"
+#include "RenderQueue.h"
+#include "Camera.h"
 
 #endif

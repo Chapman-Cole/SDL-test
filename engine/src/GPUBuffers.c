@@ -122,6 +122,10 @@ SDL_GPUBuffer* GPB_create_buffer(Uint8 type, void* data, Uint32 size) {
 }
 
 int GPB_submit_all_transfer_buffers(void) {
+    if (TBStackLen == 0) {
+        return 0;
+    }
+
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
     if (commandBuffer == NULL) {
         SDL_Log("Failed to create command buffer for copy pass in GPUBuffers.c");

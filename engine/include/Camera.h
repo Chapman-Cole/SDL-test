@@ -25,13 +25,21 @@ typedef struct Camera {
     bool treatDirectionAsTarget;
 } Camera;
 
-int camera_init(Camera* cam, vec3 position, vec3 direction, vec3 up, bool treatDirectionAsTarget) {
-    cam->position.x = position[0]; cam->position.y = position[1]; cam->position.z = position[2];
-    cam->direction.x = direction[0]; cam->direction.y = direction[1]; cam->direction.z = direction[2];
-    cam->up.x = up[0]; cam->up.y = up[1]; cam->up.z = up[2];
-    cam->treatDirectionAsTarget = treatDirectionAsTarget;
-    return 0;
-}
+#define CAMERA_DEFAULT (Camera){.position.arr = {0.0f, 0.0f, 0.0f}, .direction.arr = {0.0f, 0.0f, 1.0f}, .up.arr = {0.0f, 1.0f, 0.0f}, .treatDirectionAsTarget = false}
+
+typedef union CameraVector2D {
+    vec2 arr;
+    struct {
+        float x;
+        float y;
+    };
+} CameraVector2D;
+
+typedef struct Camera2D {
+    CameraVector2D position;
+} Camera2D;
+
+#define CAMERA2D_DEFAULT (Camera2D){.position.arr = {0.0f, 0.0f}}
 
 
 #endif

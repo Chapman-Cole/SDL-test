@@ -5,6 +5,16 @@ int render_queue_init(RenderQueue* queue, Camera* cam) {
     queue->len = 0;
     queue->renderItems = NULL;
     queue->cam = *cam;
+    queue->isCam3D = true;
+    return 0;
+}
+
+int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D) {
+    queue->capacity = 1;
+    queue->len = 0;
+    queue->renderItems = NULL;
+    queue->cam2D = *cam2D;
+    queue->isCam3D = false;
     return 0;
 }
 
@@ -19,7 +29,7 @@ int render_queue_destroy(RenderQueue* queue) {
 int render_queue_add(RenderQueue* queue, RenderObject* object) {
     if (queue->len + 1 >= queue->capacity) {
         queue->capacity *= 2;
-        queue->renderItems = (RenderItem*)SDL_malloc(queue->capacity * sizeof(RenderItem));
+        queue->renderItems = (RenderItem*)SDL_realloc(queue->renderItems, queue->capacity * sizeof(RenderItem));
         if (queue->renderItems == NULL) {
             SDL_Log("Failed to allocate memory for render_queue.");
             SDL_Quit();
@@ -28,7 +38,7 @@ int render_queue_add(RenderQueue* queue, RenderObject* object) {
     }
 
     RenderItemSortKey key;
-    key.high = object->pipeline->id << 32;
+    key.high = (uint64_t)object->pipeline->id << 32;
     key.high += object->material->id;
 
     queue->renderItems[queue->len] = (RenderItem){
@@ -49,10 +59,11 @@ int render_queue_sort(RenderQueue* queue) {
 
     for (uint32_t i = 1; i < queue->len; i++) {
         RenderItem curr_val = queue->renderItems[i];
-        uint32_t j = i - 1;
+        int64_t j = i - 1;
 
-        for (; j >= 0 && queue->renderItems[j].sortKey.high > curr_val.sortKey.high; j--) {
+        while (j >= 0 && queue->renderItems[j].sortKey.high > curr_val.sortKey.high) {
             queue->renderItems[j + 1] = queue->renderItems[j];
+            j--;
         }
 
         queue->renderItems[j + 1] = curr_val;
@@ -62,13 +73,21 @@ int render_queue_sort(RenderQueue* queue) {
 }
 
 int render_queue_submit(RenderQueue* queue) {
+    // Sort the render queue before continuing
+    render_queue_sort(queue);
+
+    // Make sure all transfer buffers and data uploads are done before rendering
+    GPB_submit_all_transfer_buffers();
+
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
 
     SDL_GPUTexture* swapchainTexture;
     Uint32 wdith, height;
     SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, get_SDL_main_window(), &swapchainTexture, &wdith, &height);
     if (swapchainTexture == NULL) {
+        // This frame will essentially get skipped
         SDL_SubmitGPUCommandBuffer(commandBuffer);
+        render_queue_destroy(queue);
         return RENDER_QUEUE_ERROR_SWAPCHAIN_FAILURE;
     }
 
@@ -84,10 +103,14 @@ int render_queue_submit(RenderQueue* queue) {
     mat4 viewMat;
     glm_mat4_identity(viewMat);
     
-    if (queue->cam.treatDirectionAsTarget == true) {
-        glm_lookat(queue->cam.position.arr, queue->cam.target.arr, queue->cam.up.arr, viewMat);
+    if (queue->isCam3D == true) {
+        if (queue->cam.treatDirectionAsTarget == true) {
+            glm_lookat(queue->cam.position.arr, queue->cam.target.arr, queue->cam.up.arr, viewMat);
+        } else {
+            glm_look(queue->cam.position.arr, queue->cam.direction.arr, queue->cam.up.arr, viewMat);
+        }
     } else {
-        glm_look(queue->cam.position.arr, queue->cam.direction.arr, queue->cam.up.arr, viewMat);
+        glm_translate(viewMat, (vec3){queue->cam2D.position.x, queue->cam2D.position.y, 0.0f});
     }
 
     SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_FRAME_DATA_SLOT, viewMat, sizeof(mat4));
@@ -102,21 +125,49 @@ int render_queue_submit(RenderQueue* queue) {
             curr_graphics_pipeline = queue->renderItems[i].pipeline->id;
 
             // Handle user frame data
-            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_FRAME_DATA_SLOT, queue->renderItems[i].pipeline->vertexFrameData.uniform, queue->renderItems[i].pipeline->vertexFrameData.uniformSize);
-            SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_FRAME_DATA_SLOT, queue->renderItems[i].pipeline->fragmentFrameData.uniform, queue->renderItems[i].pipeline->fragmentFrameData.uniformSize);
+            if (queue->renderItems[i].pipeline->vertexFrameData.uniform != NULL) {
+                SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_FRAME_DATA_SLOT, queue->renderItems[i].pipeline->vertexFrameData.uniform, queue->renderItems[i].pipeline->vertexFrameData.uniformSize);
+            }
+
+            if (queue->renderItems[i].pipeline->fragmentFrameData.uniform != NULL) {
+                SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_FRAME_DATA_SLOT, queue->renderItems[i].pipeline->fragmentFrameData.uniform, queue->renderItems[i].pipeline->fragmentFrameData.uniformSize);
+            }
         }
 
         // Handle switching materials
-        if (curr_material != queue->renderItems[i].material->id || i == 0) {
+        if (queue->renderItems[i].material->uniform.uniform != NULL && (curr_material != queue->renderItems[i].material->id || i == 0)) {
             SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_MATERIAL_SLOT, queue->renderItems[i].material->uniform.uniform, queue->renderItems[i].material->uniform.uniformSize);
             curr_material = queue->renderItems[i].material->id;
         }
 
+        // Push object specific shader data
+        if (queue->renderItems[i].object->vertexUniform.uniform != NULL) {
+            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->vertexUniform.uniform, queue->renderItems[i].object->vertexUniform.uniformSize);
+        }
 
+        if (queue->renderItems[i].object->fragmentUniform.uniform != NULL) {
+            SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->fragmentUniform.uniform, queue->renderItems[i].object->fragmentUniform.uniformSize);
+        }
+
+        SDL_GPUBufferBinding bufferBindings[1];
+        bufferBindings[0].buffer = queue->renderItems[i].object->mesh.vertexBuffer;
+        bufferBindings[0].offset = 0;
+
+        SDL_GPUBufferBinding indexBinding;
+        indexBinding.buffer = queue->renderItems[i].object->mesh.indexBuffer;
+        indexBinding.offset = 0;
+
+        SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, 1);
+        SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+
+        SDL_DrawGPUIndexedPrimitives(renderPass, queue->renderItems[i].object->mesh.numIndices, 1, 0, 0, 0);
     }
 
     SDL_EndGPURenderPass(renderPass);
     SDL_SubmitGPUCommandBuffer(commandBuffer);
+
+    // Make sure the contents of the render queue are freed up to make way for the next frame
+    render_queue_destroy(queue);
 
     return 0;
 }

@@ -30,7 +30,11 @@ typedef struct RenderQueue {
     RenderItem* renderItems;
     uint32_t len;
     uint32_t capacity;
-    Camera cam;
+    bool isCam3D;
+    union {
+        Camera cam;
+        Camera2D cam2D;
+    };
 } RenderQueue;
 
 typedef enum RenderQueueErrors {
@@ -38,6 +42,8 @@ typedef enum RenderQueueErrors {
 } RenderQueueErrors;
 
 int render_queue_init(RenderQueue* queue, Camera* cam);
+
+int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D);
 
 int render_queue_destroy(RenderQueue* queue);
 

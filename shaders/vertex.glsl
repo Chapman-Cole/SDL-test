@@ -4,6 +4,7 @@ layout (location = 0) in vec3 a_position;
 
 layout (location = 0) out vec3 v_pos;
 
+/*
 layout (std140, set = 1, binding = 0) uniform Params {
     float time;
     float offset;
@@ -13,10 +14,26 @@ layout (std140, set = 1, binding = 0) uniform Params {
     float rippleScale;
     vec2 mouse;
 } params;
+*/
 
-//layout (set = 1, binding = 1) uniform MatrixBlock1 {
-//    mat4 trans;
-//} matrices;
+layout (std140, set = 1, binding = 0) uniform EngineFrameData {
+    mat4 view;
+} EFData;
+
+layout (std140, set = 1, binding = 2) uniform UserFrameData {
+    float time;
+    vec2 mouse;
+    float pad;
+} UFData;
+
+layout (std140, set = 1, binding = 3) uniform UserObjectData {
+    float offset;
+    float xScaling;
+    int mode;
+    int shouldScaleX;
+    float rippleScale;
+    vec3 pad;
+} UOData;
 
 float minus_one_power(int x) {
     float answer = 1.0f;
@@ -67,29 +84,29 @@ float perlinNoise(vec2 seed) {
 
 void main() {
     vec3 pos = a_position;
-    float time = params.time;
+    float time = UFData.time;
     float multiplier = 1.0f;
 
-    if (params.mode == 0) {
-        if (params.shouldScaleX == 1) {
-            pos.x *= params.xScaling;
+    if (UOData.mode == 0) {
+        if (UOData.shouldScaleX == 1) {
+            pos.x *= UOData.xScaling;
         }
 
         gl_Position = vec4(pos, 1.0f);
         v_pos = a_position;
-    } else if (params.mode == 1) {
+    } else if (UOData.mode == 1) {
         float x = pos.x;
         float y = pos.y;
-        float r = sqrt(x*x + y*y) - params.time;
+        float r = sqrt(x*x + y*y) - UFData.time;
         multiplier = sin(r) + 0.5 * sin(2 * r - 1.0) + 0.1 * sin(4 * r - 5.0);
 
-        if (params.shouldScaleX == 1) {
-            pos.x *= params.xScaling;
+        if (UOData.shouldScaleX == 1) {
+            pos.x *= UOData.xScaling;
         }
 
         gl_Position = vec4(multiplier * pos, 1.0f);
         v_pos = a_position;
-    } else if (params.mode == 2) {
+    } else if (UOData.mode == 2) {
         vec3 newPos = pos;
         newPos.x += 0.011;
         newPos.y += 0.011;
@@ -99,9 +116,9 @@ void main() {
         float x = newPos.x;
         float y = newPos.y;
 
-        float zoomFactor = params.rippleScale;
+        float zoomFactor = UOData.rippleScale;
 
-        float tMulty = time * minus_one_power(int(10.0f * perlinNoise(vec2(zoomFactor * pos.x - time - params.offset, zoomFactor * pos.y + time - params.offset))));
+        float tMulty = time * minus_one_power(int(10.0f * perlinNoise(vec2(zoomFactor * pos.x - time - UOData.offset, zoomFactor * pos.y + time - UOData.offset))));
         newPos.x = x * cos(tMulty) - y * sin(tMulty);
         newPos.y = x * sin(tMulty) + y * cos(tMulty);
 
@@ -110,29 +127,29 @@ void main() {
 
         pos.xy = newPos.xy;
 
-        if (params.shouldScaleX == 1) {
-            pos.x *= params.xScaling;
+        if (UOData.shouldScaleX == 1) {
+            pos.x *= UOData.xScaling;
         }
 
-        float dropoff = 1.0f / clamp(pow(distance(5.0f * params.mouse, 5.0f * pos.xy), 2), 1.2f, 10000.0f);
+        float dropoff = 1.0f / clamp(pow(distance(5.0f * UFData.mouse, 5.0f * pos.xy), 2), 1.2f, 10000.0f);
 
         // Makes trippy sphere effect
-        // pos.xy = dropoff * (params.mouse - pos.xy);
+        // pos.xy = dropoff * (UFData.mouse - pos.xy);
 
         // Makes paraboloid effect
-        // pos.xy = dropoff * (params.mouse + pos.xy);
+        // pos.xy = dropoff * (UFData.mouse + pos.xy);
 
         // Offset magnifying effect
-        // pos.xy += dropoff * (params.mouse + pos.xy);
+        // pos.xy += dropoff * (UFData.mouse + pos.xy);
 
         // Fabric poking effect
-        // pos.xy -= dropoff * (params.mouse + pos.xy);
+        // pos.xy -= dropoff * (UFData.mouse + pos.xy);
 
         // Makes pinching effect
-        // pos.xy += dropoff * (params.mouse - pos.xy);
+        // pos.xy += dropoff * (UFData.mouse - pos.xy);
 
         // Makes magnfication effect
-        pos.xy -= dropoff * (params.mouse - pos.xy);
+        pos.xy -= dropoff * (UFData.mouse - pos.xy);
 
         gl_Position = vec4(pos, 1.0f);
         v_pos = a_position;

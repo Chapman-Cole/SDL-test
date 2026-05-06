@@ -4,6 +4,7 @@ layout (location = 0) in vec3 pos;
 
 layout (location = 0) out vec4 FragColor;
 
+/*
 layout (std140, set = 3, binding = 0) uniform Params {
     float time;
     float offset;
@@ -19,6 +20,28 @@ layout (std140, set = 3, binding = 1) uniform Color {
     vec4 col2;
     vec4 col3;
 } color;
+*/
+
+layout (std140, set = 3, binding = 0) uniform MaterialData {
+    vec4 col1;
+    vec4 col2;
+    vec4 col3;
+} MatData;
+
+layout (std140, set = 3, binding = 1) uniform UserFrameData {
+    float time;
+    vec2 mouse;
+    float pad;
+} UFData;
+
+layout (std140, set = 3, binding = 2) uniform UserObjectData {
+    float offset;
+    float xScaling;
+    int mode;
+    int shouldScaleX;
+    float rippleScale;
+    vec3 pad;
+} UOData;
 
 #define PI 3.14159265359
 #define HALF_PI 1.57079632679
@@ -91,11 +114,11 @@ float perlinNoise(vec2 seed) {
 void main() {
     vec3 position = vec3(pos.x, pos.y, pos.z);
 
-    float addTime = 0.5 * (sin(5 * sqrt(position.x * position.x + position.y * position.y) - params.time) + 1.1);
+    float addTime = 0.5 * (sin(5 * sqrt(position.x * position.x + position.y * position.y) - UFData.time) + 1.1);
 
-    float perlin1 = perlinNoise(position.xy * 5 - params.offset * params.time * 0.5);
+    float perlin1 = perlinNoise(position.xy * 5 - UOData.offset * UFData.time * 0.5);
 
-    float perlin2 = 0.5 * perlinNoise(position.xy * 6 + params.offset * params.time * 0.5);
+    float perlin2 = 0.5 * perlinNoise(position.xy * 6 + UOData.offset * UFData.time * 0.5);
 
     float perlin = (perlin1 + perlin2 + 1.5) / 3;
 
@@ -108,16 +131,16 @@ void main() {
     //}
 
     if (perlin >= 0.52) {
-        FragColor = color.col1;
+        FragColor = MatData.col1;
     } else if (perlin >= 0.48) {
-        FragColor = color.col2;
+        FragColor = MatData.col2;
     } else {
-        FragColor = color.col3;
+        FragColor = MatData.col3;
     }
 
-    float dropoff = 1.0f / clamp(pow(distance(5.0f * params.mouse, 5.0f * pos.xy), 2), 0.5f, 10000.0f);
+    float dropoff = 1.0f / clamp(pow(distance(5.0f * UFData.mouse, 5.0f * pos.xy), 2), 0.5f, 10000.0f);
 
-    FragColor.rgb += dropoff * vec3(params.mouse - pos.xy, dot(params.mouse, pos.xy));
+    FragColor.rgb += dropoff * vec3(UFData.mouse - pos.xy, dot(UFData.mouse, pos.xy));
 
     clamp(FragColor, 0.0, 1.0);
 }
