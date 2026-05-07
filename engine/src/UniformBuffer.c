@@ -101,7 +101,7 @@ void uniform_buffer_set_uint(UniformBuffer* uniform, UBElementHandle handle, uin
 }
 
 void uniform_buffer_set_float(UniformBuffer* uniform, UBElementHandle handle, float input) {
-    *(float*)(uniform->uniform + uniform->layout->uniformElements[handle.index].offset) = input;
+    *((float*)(uniform->uniform + uniform->layout->uniformElements[handle.index].offset)) = input;
 }
 
 // ----------------------------------------------------------------------

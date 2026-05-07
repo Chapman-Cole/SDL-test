@@ -8,7 +8,18 @@ layout (std140, set = 1, binding = 0) uniform viewMatUniform {
     mat4 view;
 } matUniform;
 
+layout (std140, set = 1, binding = 1) uniform EngineObjectData {
+    vec4 pad;
+} EOData;
+
+layout (std140, set = 1, binding = 2) uniform UserFrameData {
+    float time;
+    vec2 mouse;
+    float pad;
+} UFData;
+
 void main() {
     v_pos = a_position;
-    gl_Position = matUniform.view * vec4(a_position, 1.0);
+    vec3 pos = abs(sin(UFData.time)) * a_position;
+    gl_Position = matUniform.view * vec4(pos, 1.0);
 }

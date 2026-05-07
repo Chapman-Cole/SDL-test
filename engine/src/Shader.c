@@ -77,6 +77,11 @@ SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 
     vertexInfo.num_samplers = shaderLayout->num_samplers;
     vertexInfo.num_storage_buffers = shaderLayout->num_storage_buffers;
     vertexInfo.num_storage_textures = shaderLayout->num_storage_textures;
+
+    // In order for the rendering engine to work properly, the user must always declare all of the uniform buffers
+    // in the shader so that the numbering 0, 1, ... works properly. Basically, if you try to access a slot
+    // higher than the number of uniform buffers, which can happen because of the assigned slots in the rendering engine,
+    // SDL3 won't be able to handle it properly
     vertexInfo.num_uniform_buffers = shaderLayout->num_uniform_buffers;
 
     SDL_GPUShader* vertexShader = SDL_CreateGPUShader(get_SDL_gpu_device(), &vertexInfo);
@@ -137,6 +142,11 @@ SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint3
     fragmentInfo.num_samplers = shaderLayout->num_samplers;
     fragmentInfo.num_storage_buffers = shaderLayout->num_storage_buffers;
     fragmentInfo.num_storage_textures = shaderLayout->num_storage_textures;
+
+    // In order for the rendering engine to work properly, the user must always declare all of the uniform buffers
+    // in the shader so that the numbering 0, 1, ... works properly. Basically, if you try to access a slot
+    // higher than the number of uniform buffers, which can happen because of the assigned slots in the rendering engine,
+    // SDL3 won't be able to handle it properly
     fragmentInfo.num_uniform_buffers = shaderLayout->num_uniform_buffers;
 
     SDL_GPUShader* fragmentShader = SDL_CreateGPUShader(get_SDL_gpu_device(), &fragmentInfo);

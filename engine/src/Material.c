@@ -17,7 +17,7 @@ UBElementHandle material_get_handle(Material* mat, string* name) {
         if (
             // Material properties are specific to slot 0 for uniform buffers
             // in the fragment shader
-            mat->uniform.layout->uniformElements[i].bindingNum == 0 &&
+            mat->uniform.layout->uniformElements[i].bindingNum == UNIFORM_FRAGMENT_MATERIAL_SLOT &&
             string_compare(name, &mat->uniform.layout->uniformElements[i].name) == true
         ) {
             return (UBElementHandle){.index = i, .shaderType = UNIFORM_BUFFER_FRAGMENT};

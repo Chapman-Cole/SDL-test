@@ -20,6 +20,10 @@ layout (std140, set = 1, binding = 0) uniform EngineFrameData {
     mat4 view;
 } EFData;
 
+layout (std140, set = 1, binding = 1) uniform EngineObjectData {
+    vec4 pad;
+} EOData;
+
 layout (std140, set = 1, binding = 2) uniform UserFrameData {
     float time;
     vec2 mouse;

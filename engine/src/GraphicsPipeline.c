@@ -217,7 +217,7 @@ UBElementHandle graphics_pipeline_vertex_get_handle(GraphicsPipeline* pipeline, 
         if (
             // The binding/slot number that corresponds to user provided frame data
             // for the vertex shader is 2 according the the convention I came up with
-            pipeline->vertexLayout.uniformElements[i].bindingNum == 2 ||
+            pipeline->vertexLayout.uniformElements[i].bindingNum == UNIFORM_VERTEX_USER_FRAME_DATA_SLOT &&
             string_compare(name, &pipeline->vertexLayout.uniformElements[i].name) == true
         ) {
             return (UBElementHandle){
@@ -235,7 +235,7 @@ UBElementHandle graphics_pipeline_fragment_get_handle(GraphicsPipeline* pipeline
         if (
             // The binding/slot number that corresponds to user provided frame data
             // for the fragment shader is 1 according to the convention I came up with
-            pipeline->fragmentLayout.uniformElements[i].bindingNum == 1 ||
+            pipeline->fragmentLayout.uniformElements[i].bindingNum == UNIFORM_FRAGMENT_USER_FRAME_DATA_SLOT &&
             string_compare(name, &pipeline->fragmentLayout.uniformElements[i].name) == true
         ) {
             return (UBElementHandle){
