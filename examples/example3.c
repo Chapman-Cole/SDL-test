@@ -60,8 +60,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     render_object_create(&secondObj, &graphicsPipeline, &objMat);
     meshobject_load_objfile(&secondObj.mesh, STRING("../objects/JediOrder.obj"));
 
-    shader_uniform_elements_print(&graphicsPipeline.vertexLayout);
-
     return SDL_APP_CONTINUE;
 }
 
@@ -77,6 +75,12 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     RenderQueue rQueue;
     Camera2D cam = CAMERA2D_DEFAULT;
     //cam.position.x = SDL_sinf((float)SDL_GetTicks() * 0.001f);
+
+    testObj.position.x = SDL_sinf((float)SDL_GetTicks() * 0.001f);
+    glm_quat(testObj.quaternion, (float)SDL_GetTicks() * 0.001f, 0, 0, 1);
+
+    //secondObj.position.x = -SDL_sinf((float)SDL_GetTicks() * 0.001f);
+    glm_quat(secondObj.quaternion, (float)SDL_GetTicks() * -0.001f, 0, 0, 1);
 
     uniform_buffer_set_float(
         &graphicsPipeline.vertexFrameData,

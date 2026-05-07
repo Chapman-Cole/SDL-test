@@ -140,7 +140,18 @@ int render_queue_submit(RenderQueue* queue) {
             curr_material = queue->renderItems[i].material->id;
         }
 
-        // Push object specific shader data
+        // Push engine object data
+        mat4 objectTransform;
+        glm_mat4_identity(objectTransform);
+        glm_scale(objectTransform, queue->renderItems[i].object->scale.arr);
+
+        mat4 objectTransformAfter;
+        glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, objectTransformAfter);
+        glm_translate(objectTransformAfter, queue->renderItems[i].object->position.arr);
+
+        SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, objectTransformAfter, sizeof(mat4));
+
+        // Push user object specific data
         if (queue->renderItems[i].object->vertexUniform.uniform != NULL) {
             SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->vertexUniform.uniform, queue->renderItems[i].object->vertexUniform.uniformSize);
         }

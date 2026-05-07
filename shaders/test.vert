@@ -9,7 +9,7 @@ layout (std140, set = 1, binding = 0) uniform viewMatUniform {
 } matUniform;
 
 layout (std140, set = 1, binding = 1) uniform EngineObjectData {
-    vec4 pad;
+    mat4 model;
 } EOData;
 
 layout (std140, set = 1, binding = 2) uniform UserFrameData {
@@ -20,6 +20,6 @@ layout (std140, set = 1, binding = 2) uniform UserFrameData {
 
 void main() {
     v_pos = a_position;
-    vec3 pos = abs(sin(UFData.time)) * a_position;
-    gl_Position = matUniform.view * vec4(pos, 1.0);
+    vec3 pos = a_position;
+    gl_Position = matUniform.view * EOData.model * vec4(pos, 1.0);
 }

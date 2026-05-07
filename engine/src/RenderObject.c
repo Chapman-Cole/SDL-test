@@ -3,10 +3,17 @@
 int render_object_create(RenderObject* object, GraphicsPipeline* pipeline, Material* material) {
     object->pipeline = pipeline;
     object->material = material;
+
     object->position.x = 0;
     object->position.y = 0;
     object->position.z = 0;
+
     glm_quat_identity(object->quaternion);
+    
+    object->scale.x = 1.0f;
+    object->scale.y = 1.0f;
+    object->scale.z = 1.0f;
+
     uniform_buffer_create(&object->vertexUniform, &pipeline->vertexLayout, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT);
     uniform_buffer_create(&object->fragmentUniform, &pipeline->fragmentLayout, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT);
 

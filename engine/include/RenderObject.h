@@ -33,6 +33,7 @@ typedef struct RenderObject {
 
     // This is mostly used internally for rotations
     versor quaternion;
+    RenderObjectVector3 scale;
 } RenderObject;
 
 int render_object_create(RenderObject* object, GraphicsPipeline* pipeline, Material* material);
