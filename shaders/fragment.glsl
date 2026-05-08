@@ -4,24 +4,6 @@ layout (location = 0) in vec3 pos;
 
 layout (location = 0) out vec4 FragColor;
 
-/*
-layout (std140, set = 3, binding = 0) uniform Params {
-    float time;
-    float offset;
-    float xScaling;
-    int mode;
-    int shouldScaleX;
-    float rippleScale;
-    vec2 mouse;
-} params;
-
-layout (std140, set = 3, binding = 1) uniform Color {
-    vec4 col1;
-    vec4 col2;
-    vec4 col3;
-} color;
-*/
-
 layout (std140, set = 3, binding = 0) uniform MaterialData {
     vec4 col1;
     vec4 col2;

@@ -85,6 +85,10 @@ target_include_directories(${project_name} PRIVATE ../engine/include)
     
 target_link_libraries(${project_name} PRIVATE ${CMAKE_SOURCE_DIR}/build/lib/${library_name})
 
+if(UNIX)
+    target_link_libraries(${project_name} PRIVATE m)
+endif()
+
 include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)

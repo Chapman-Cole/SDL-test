@@ -4,24 +4,12 @@ layout (location = 0) in vec3 a_position;
 
 layout (location = 0) out vec3 v_pos;
 
-/*
-layout (std140, set = 1, binding = 0) uniform Params {
-    float time;
-    float offset;
-    float xScaling;
-    int mode;
-    int shouldScaleX;
-    float rippleScale;
-    vec2 mouse;
-} params;
-*/
-
 layout (std140, set = 1, binding = 0) uniform EngineFrameData {
     mat4 view;
 } EFData;
 
 layout (std140, set = 1, binding = 1) uniform EngineObjectData {
-    vec4 pad;
+    mat4 model;
 } EOData;
 
 layout (std140, set = 1, binding = 2) uniform UserFrameData {
