@@ -6,6 +6,7 @@ int render_queue_init(RenderQueue* queue, Camera* cam) {
     queue->renderItems = NULL;
     queue->cam = *cam;
     queue->isCam3D = true;
+    queue->backgroundColor = (SDL_FColor){255 / 255.0f, 219 / 255.0f, 187 / 255.0f, 255 / 255.0f};
     return 0;
 }
 
@@ -15,6 +16,7 @@ int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D) {
     queue->renderItems = NULL;
     queue->cam2D = *cam2D;
     queue->isCam3D = false;
+    queue->backgroundColor = (SDL_FColor){255 / 255.0f, 219 / 255.0f, 187 / 255.0f, 255 / 255.0f};
     return 0;
 }
 
@@ -92,7 +94,7 @@ int render_queue_submit(RenderQueue* queue) {
     }
 
     SDL_GPUColorTargetInfo colorTargetInfo = {0};
-    colorTargetInfo.clear_color = (SDL_FColor){255 / 255.0f, 219 / 255.0f, 187 / 255.0f, 255 / 255.0f};
+    colorTargetInfo.clear_color = queue->backgroundColor;
     colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
     colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
     colorTargetInfo.texture = swapchainTexture;
@@ -143,11 +145,11 @@ int render_queue_submit(RenderQueue* queue) {
         // Push engine object data
         mat4 objectTransform;
         glm_mat4_identity(objectTransform);
-        glm_scale(objectTransform, queue->renderItems[i].object->scale.arr);
+        glm_translate(objectTransform, queue->renderItems[i].object->position.arr);
 
         mat4 objectTransformAfter;
         glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, objectTransformAfter);
-        glm_translate(objectTransformAfter, queue->renderItems[i].object->position.arr);
+        glm_scale(objectTransformAfter, queue->renderItems[i].object->scale.arr);
 
         SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, objectTransformAfter, sizeof(mat4));
 

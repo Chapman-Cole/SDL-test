@@ -79,7 +79,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     testObj.position.x = SDL_sinf((float)SDL_GetTicks() * 0.001f);
     glm_quat(testObj.quaternion, (float)SDL_GetTicks() * 0.001f, 0, 0, 1);
 
-    //secondObj.position.x = -SDL_sinf((float)SDL_GetTicks() * 0.001f);
+    secondObj.position.x = -SDL_sinf((float)SDL_GetTicks() * 0.001f);
     glm_quat(secondObj.quaternion, (float)SDL_GetTicks() * -0.001f, 0, 0, 1);
 
     uniform_buffer_set_float(

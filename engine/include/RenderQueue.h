@@ -35,6 +35,7 @@ typedef struct RenderQueue {
         Camera cam;
         Camera2D cam2D;
     };
+    SDL_FColor backgroundColor;
 } RenderQueue;
 
 typedef enum RenderQueueErrors {
