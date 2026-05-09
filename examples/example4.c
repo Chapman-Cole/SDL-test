@@ -12,12 +12,14 @@ typedef struct Particle {
 GraphicsPipeline graphicsPipeline;
 Material objMat;
 
-#define NUM_PARTICLES 10000
+#define NUM_PARTICLES 2500
 Particle particles[NUM_PARTICLES];
 
 Uint64 perfFrequency = 0;
 Uint64 perfCounterPrev = 0;
 float appTime = 0.0;
+
+Camera2D cam = CAMERA2D_DEFAULT;
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -71,7 +73,23 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         particles[i].robj.scale.y = 0.004;
 
         glm_vec3_copy((vec3){2 * (SDL_randf() - 0.5), 2 * (SDL_randf() - 0.5)}, particles[i].robj.position.arr);
-        glm_vec3_copy((vec3){2 * (SDL_randf() - 0.5), 2 * (SDL_randf() - 0.5), 0.0f}, particles[i].velocity);
+        //glm_vec3_copy((vec3){0.7 * 2.0 * (SDL_randf() - 0.5), 0.7 * 2.0 * (SDL_randf() - 0.5), 0.0f}, particles[i].velocity);
+        particles[i].velocity[0] = 1.0f;
+        particles[i].velocity[1] = 1.0f;
+        particles[i].velocity[2] = 1.0f;
+        glm_vec3_rotate(particles[i].velocity, 2.0f * SDL_PI_F * SDL_randf(), (vec3){0.0f, 0.0f, 1.0f});
+        vec3 tempVec;
+        glm_vec3_copy(particles[i].velocity, tempVec);
+        glm_vec3_scale(tempVec, 0.7f * SDL_sqrt(SDL_randf()), particles[i].velocity);
+
+
+        if (particles[i].velocity[0] == 0.0f) {
+            particles[i].velocity[0] = 0.4f;
+        }
+
+        if (particles[i].velocity[1] == 0.0f) {
+            particles[i].velocity[1] = 0.4f;
+        }
     }
 
     perfCounterPrev = SDL_GetPerformanceCounter();
@@ -96,14 +114,27 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     perfCounterPrev = perfCounterNow;
     appTime += (float)elapsed;
 
-    RenderQueue rQueue;
-    Camera2D cam = CAMERA2D_DEFAULT;
-    render_queue_init2D(&rQueue, &cam);
-
-    rQueue.backgroundColor = (SDL_FColor){0.0f, 0.0f, 0.0f, 1.0f};
-
     int windowWidth, windowHeight;
     SDL_GetWindowSizeInPixels(get_SDL_main_window(), &windowWidth, &windowHeight);
+
+    RenderQueue rQueue;
+    render_queue_init2D(&rQueue, &cam, (float)windowWidth / (float)windowHeight);
+
+    const bool* state = SDL_GetKeyboardState(NULL);
+    float speed = 5.0f;
+    if (state[SDL_SCANCODE_UP]) {
+        cam.position.y += speed * elapsed;
+    } else if (state[SDL_SCANCODE_DOWN]) {
+        cam.position.y -= speed * elapsed;
+    }
+
+    if (state[SDL_SCANCODE_RIGHT]) {
+        cam.position.x += speed * elapsed;
+    } else if (state[SDL_SCANCODE_LEFT]) {
+        cam.position.x -= speed * elapsed;
+    }
+
+    rQueue.backgroundColor = (SDL_FColor){0.0f, 0.0f, 0.0f, 1.0f};
 
     float mouseX, mouseY;
     SDL_GetMouseState(&mouseX, &mouseY);
@@ -138,19 +169,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
         glm_vec3_copy(newPos, particles[i].robj.position.arr);
 
-        bool updateVel = false;
-        if (abs(particles[i].robj.position.x) > 1) {
-            particles[i].robj.position.x = 2 * (SDL_randf() - 0.5);
-            updateVel = true;
-        }
 
-        if (abs(particles[i].robj.position.y) > 1) {
-            particles[i].robj.position.y = 2 * (SDL_randf() - 0.5);
-            updateVel = true;
-        }
-
-        if (updateVel == true) {
-            glm_vec3_copy(particles[i].velocity, (vec3){2 * (SDL_randf() - 0.5), 2 * (SDL_randf() - 0.5), 0.0f});
+        if (abs(particles[i].robj.position.x) > 1.0f || abs(particles[i].robj.position.y) > 1.0f) {
+            particles[i].velocity[0] *= -1.0f;
+            particles[i].velocity[1] *= -1.0f;
         }
 
         render_queue_add(&rQueue, &particles[i].robj);

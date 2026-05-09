@@ -4,21 +4,17 @@ layout (location = 0) in vec3 a_position;
 
 layout (location = 0) out vec3 v_pos;
 
-layout (std140, set = 1, binding = 0) uniform EngineFrameData {
-    mat4 view;
-} EFData;
-
-layout (std140, set = 1, binding = 1) uniform EngineObjectData {
-    mat4 model;
+layout (std140, set = 1, binding = 0) uniform EngineObjectData {
+    mat4 MVP;
 } EOData;
 
-layout (std140, set = 1, binding = 2) uniform UserFrameData {
+layout (std140, set = 1, binding = 1) uniform UserFrameData {
     float time;
     vec2 mouse;
     float pad;
 } UFData;
 
-layout (std140, set = 1, binding = 3) uniform UserObjectData {
+layout (std140, set = 1, binding = 2) uniform UserObjectData {
     float offset;
     float xScaling;
     int mode;

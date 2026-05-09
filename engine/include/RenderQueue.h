@@ -36,15 +36,21 @@ typedef struct RenderQueue {
         Camera2D cam2D;
     };
     SDL_FColor backgroundColor;
+    float fov;
+    float nearZ;
+    float farZ;
+    float aspectRatio;
 } RenderQueue;
 
 typedef enum RenderQueueErrors {
     RENDER_QUEUE_ERROR_SWAPCHAIN_FAILURE = -1
 } RenderQueueErrors;
 
-int render_queue_init(RenderQueue* queue, Camera* cam);
+// Aspect ratio is expected as width / height
+int render_queue_init(RenderQueue* queue, Camera* cam, float aspectRatio);
 
-int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D);
+// Aspect ratio is expected as width / height
+int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D, float aspectRatio);
 
 int render_queue_destroy(RenderQueue* queue);
 

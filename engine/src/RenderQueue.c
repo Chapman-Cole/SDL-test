@@ -1,22 +1,27 @@
 #include "RenderQueue.h"
 
-int render_queue_init(RenderQueue* queue, Camera* cam) {
+int render_queue_init(RenderQueue* queue, Camera* cam, float aspectRatio) {
     queue->capacity = 1;
     queue->len = 0;
     queue->renderItems = NULL;
     queue->cam = *cam;
     queue->isCam3D = true;
     queue->backgroundColor = (SDL_FColor){255 / 255.0f, 219 / 255.0f, 187 / 255.0f, 255 / 255.0f};
+    queue->fov = cam->fov;
+    queue->nearZ = cam->nearZ;
+    queue->farZ = cam->farZ;
+    queue->aspectRatio = aspectRatio;
     return 0;
 }
 
-int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D) {
+int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D, float aspectRatio) {
     queue->capacity = 1;
     queue->len = 0;
     queue->renderItems = NULL;
     queue->cam2D = *cam2D;
     queue->isCam3D = false;
     queue->backgroundColor = (SDL_FColor){255 / 255.0f, 219 / 255.0f, 187 / 255.0f, 255 / 255.0f};
+    queue->aspectRatio = aspectRatio;
     return 0;
 }
 
@@ -101,21 +106,30 @@ int render_queue_submit(RenderQueue* queue) {
 
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, NULL);
 
-    // Push camera data as a mat4
-    mat4 viewMat;
-    glm_mat4_identity(viewMat);
+    // It's important to keep in mind that glm functions operate as right multiplication, meaning the ordering
+    // becomes the opposite of what you would initially expect
+
+    // This is the MVP matrix, or model, view, projection matrix. 
+    // In the case of a 2D camera, there is no projection matrix
+    mat4 MVP;
+    glm_mat4_identity(MVP);
     
     if (queue->isCam3D == true) {
+        glm_perspective(glm_rad(queue->fov), queue->aspectRatio, queue->nearZ, queue->farZ, MVP);
+
         if (queue->cam.treatDirectionAsTarget == true) {
-            glm_lookat(queue->cam.position.arr, queue->cam.target.arr, queue->cam.up.arr, viewMat);
+            glm_lookat(queue->cam.position.arr, queue->cam.target.arr, queue->cam.up.arr, MVP);
         } else {
-            glm_look(queue->cam.position.arr, queue->cam.direction.arr, queue->cam.up.arr, viewMat);
+            glm_look(queue->cam.position.arr, queue->cam.direction.arr, queue->cam.up.arr, MVP);
         }
     } else {
-        glm_translate(viewMat, (vec3){queue->cam2D.position.x, queue->cam2D.position.y, 0.0f});
-    }
+        // The negative sign is because the objects in the world need to be translated in the opposite direction
+        // that the camera would move
+        glm_translate(MVP, (vec3){-queue->cam2D.position.x, -queue->cam2D.position.y, 0.0f});
 
-    SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_FRAME_DATA_SLOT, viewMat, sizeof(mat4));
+        // Handle the aspect ratio automatically in the MVP matrix
+        glm_scale(MVP, (vec3){1.0f / queue->aspectRatio, 1.0f, 1.0f});
+    }
 
     // Start the main loop for binding and draw calls
     uint32_t curr_graphics_pipeline = queue->renderItems[0].pipeline->id;
@@ -146,12 +160,14 @@ int render_queue_submit(RenderQueue* queue) {
         mat4 objectTransform;
         glm_mat4_identity(objectTransform);
         glm_translate(objectTransform, queue->renderItems[i].object->position.arr);
+        mat4 tempRotation;
+        glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, tempRotation);
+        glm_scale(tempRotation, queue->renderItems[i].object->scale.arr);
 
-        mat4 objectTransformAfter;
-        glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, objectTransformAfter);
-        glm_scale(objectTransformAfter, queue->renderItems[i].object->scale.arr);
+        mat4 testMult;
+        glm_mat4_mul(MVP, tempRotation, testMult);
 
-        SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, objectTransformAfter, sizeof(mat4));
+        SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, testMult, sizeof(mat4));
 
         // Push user object specific data
         if (queue->renderItems[i].object->vertexUniform.uniform != NULL) {

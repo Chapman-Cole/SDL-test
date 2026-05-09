@@ -95,7 +95,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         4
     );
 
-    render_queue_init2D(&rQueue, &cam);
+    int windowWidth, windowHeight;
+    SDL_GetWindowSizeInPixels(get_SDL_main_window(), &windowWidth, &windowHeight);
+
+    render_queue_init2D(&rQueue, &cam, (float)windowWidth / (float)windowHeight);
 
     render_queue_add(&rQueue, &testObj);
     render_queue_add(&rQueue, &secondObj);

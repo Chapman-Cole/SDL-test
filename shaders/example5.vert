@@ -9,9 +9,8 @@ layout (std140, set = 1, binding = 0) uniform EngineObjectData {
 } EOData;
 
 layout (std140, set = 1, binding = 1) uniform UserFrameData {
-    float time;
-    vec2 mouse;
-    float pad;
+    float aspectRatio;
+    vec3 pad;
 } UFData;
 
 layout (std140, set = 1, binding = 2) uniform UserObjectData {
@@ -19,7 +18,6 @@ layout (std140, set = 1, binding = 2) uniform UserObjectData {
 } UOData;
 
 void main() {
+    gl_Position = EOData.MVP * vec4(a_position.x, a_position.y, a_position.z, 1.0);
     v_pos = a_position;
-    vec3 pos = a_position;
-    gl_Position = EOData.MVP * vec4(pos, 1.0);
 }

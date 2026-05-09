@@ -22,11 +22,10 @@ but it is integrated directly into the project under the external directory.
 The engine expects SPIR-V byte code or glsl code (hence the requirement for shaderc), and
 imposes a few conventions in order for ease of integration with the engine. A key
 limitation of SDL3's gpu api is that you can't have more than 4 uniform slots. For vertex uniforms, they 
-must be of set=1 (this is an SDL3 convention), engine frame data will go in slot 0 (binding = 0), engine object data
-will go in slot 1 (binding = 1), user frame data will go in slot 2 (binding = 2), and user object data will go in 
-slot 3 (binding = 3). For fragment uniforms, they must be of set=3 (this is an SDL3 convention), material data will
-go in slot 0 (binding = 0), user frame data will go in slot 1 (binding = 1), and user object data will go in 
-slot 2 (binding = 2). Something very important to note is that in order for the rendering engine to work properly,
-you have to declare all of the specified uniform buffer slots in order for it to work properly, even if you don't intend to use
-some of them. This is because the higher valued slots can sometimes exceed the value of the number of uniform buffers,
-and SDL3 is designed to handle this case.
+must be of set=1 (this is an SDL3 convention), engine object data will go in slot 0 (binding = 0), user frame 
+data will go in slot 1 (binding = 1), and user object data will go in slot 2 (binding = 2). For fragment uniforms, 
+they must be of set=3 (this is an SDL3 convention), material data will go in slot 0 (binding = 0), user frame data 
+will go in slot 1 (binding = 1), and user object data will go in slot 2 (binding = 2). Something very important to note 
+is that in order for the rendering engine to work properly, you have to declare all of the specified uniform buffer 
+slots in order for it to work properly, even if you don't intend to use some of them. This is because the higher 
+valued slots can sometimes exceed the value of the number of uniform buffers, and SDL3 is designed to handle this case.

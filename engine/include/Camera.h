@@ -23,9 +23,12 @@ typedef struct Camera {
     // Instead providing a target direction, you provide a target
     // point to look at
     bool treatDirectionAsTarget;
+    float fov;
+    float nearZ;
+    float farZ;
 } Camera;
 
-#define CAMERA_DEFAULT (Camera){.position.arr = {0.0f, 0.0f, 0.0f}, .direction.arr = {0.0f, 0.0f, 1.0f}, .up.arr = {0.0f, 1.0f, 0.0f}, .treatDirectionAsTarget = false}
+#define CAMERA_DEFAULT (Camera){.position.arr = {0.0f, 0.0f, 0.0f}, .direction.arr = {0.0f, 0.0f, 1.0f}, .up.arr = {0.0f, 1.0f, 0.0f}, .treatDirectionAsTarget = false, .fov = 90, .nearZ = 0.1f, .farZ = 1000.0f}
 
 typedef union CameraVector2D {
     vec2 arr;

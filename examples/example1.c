@@ -160,12 +160,12 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     perfCounterPrev = perfCounterNow;
     appTime += (float)elapsed;
 
-    RenderQueue rQueue;
-    Camera2D cam = CAMERA2D_DEFAULT;
-    render_queue_init2D(&rQueue, &cam);
-
     int windowWidth, windowHeight;
     SDL_GetWindowSizeInPixels(get_SDL_main_window(), &windowWidth, &windowHeight);
+
+    RenderQueue rQueue;
+    Camera2D cam = CAMERA2D_DEFAULT;
+    render_queue_init2D(&rQueue, &cam, (float)windowWidth / (float)windowHeight);
 
     float mouseX, mouseY;
     SDL_GetMouseState(&mouseX, &mouseY);
