@@ -22,6 +22,8 @@ int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D, float aspectRatio) 
     queue->isCam3D = false;
     queue->backgroundColor = (SDL_FColor){255 / 255.0f, 219 / 255.0f, 187 / 255.0f, 255 / 255.0f};
     queue->aspectRatio = aspectRatio;
+    queue->nearZ = cam2D->nearZ;
+    queue->farZ = cam2D->farZ;
     return 0;
 }
 
@@ -112,6 +114,7 @@ int render_queue_submit(RenderQueue* queue) {
     // This is the MVP matrix, or model, view, projection matrix. 
     // In the case of a 2D camera, there is no projection matrix
     mat4 MVP;
+    glm_mat4_identity(MVP);
     
     if (queue->isCam3D == true) {
         mat4 tempPerspective;
@@ -126,12 +129,39 @@ int render_queue_submit(RenderQueue* queue) {
 
         glm_mat4_mul(tempPerspective, tempView, MVP);
     } else {
-        // The negative sign is because the objects in the world need to be translated in the opposite direction
-        // that the camera would move
-        glm_translate(MVP, (vec3){-queue->cam2D.position.x, -queue->cam2D.position.y, 0.0f});
+        if (queue->cam2D.fitAspectRatio == true) {
+            // Calculate the new x bounds in order to make the aspect ratio work properly
+            float centerX = (queue->cam2D.horizontalBounds.x + queue->cam2D.horizontalBounds.y) / 2.0f;
+            float newDistX = (queue->cam2D.verticalBounds.y - queue->cam2D.verticalBounds.x) * queue->aspectRatio * queue->cam2D.zoom;
 
-        // Handle the aspect ratio automatically in the MVP matrix
-        glm_scale(MVP, (vec3){1.0f / queue->aspectRatio, 1.0f, 1.0f});
+            float centerY = (queue->cam2D.verticalBounds.x + queue->cam2D.verticalBounds.y) / 2.0f;
+            float newDistY = (queue->cam2D.verticalBounds.y - queue->cam2D.verticalBounds.x) * queue->cam2D.zoom;
+
+            float xLowBound = centerX - newDistX / 2.0f;
+            float xHighBound = centerX + newDistX / 2.0f;
+
+            float yLowBound = centerY - newDistY / 2.0f;
+            float yHighBound = centerY + newDistY / 2.0f;
+
+            glm_ortho(xLowBound, xHighBound, yLowBound, yHighBound, queue->nearZ, queue->farZ, MVP);
+        } else {
+            // Calculations for the zoom
+            float centerX = (queue->cam2D.horizontalBounds.x + queue->cam2D.horizontalBounds.y) / 2.0f;
+            float newDistX = (queue->cam2D.verticalBounds.y - queue->cam2D.verticalBounds.x) * queue->cam2D.zoom;
+
+            float centerY = (queue->cam2D.verticalBounds.x + queue->cam2D.verticalBounds.y) / 2.0f;
+            float newDistY = (queue->cam2D.verticalBounds.y - queue->cam2D.verticalBounds.x) * queue->cam2D.zoom;
+
+            float xLowBound = centerX - newDistX / 2.0f;
+            float xHighBound = centerX + newDistX / 2.0f;
+
+            float yLowBound = centerY - newDistY / 2.0f;
+            float yHighBound = centerY + newDistY / 2.0f;
+
+            glm_ortho(xLowBound, xHighBound, yLowBound, yHighBound, queue->nearZ, queue->farZ, MVP);
+        }
+
+        glm_translate(MVP, (vec3){-queue->cam2D.position.x, -queue->cam2D.position.y, 0.0f});
     }
 
     // Start the main loop for binding and draw calls

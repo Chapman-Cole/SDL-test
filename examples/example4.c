@@ -12,7 +12,7 @@ typedef struct Particle {
 GraphicsPipeline graphicsPipeline;
 Material objMat;
 
-#define NUM_PARTICLES 2500
+#define NUM_PARTICLES 4000
 Particle particles[NUM_PARTICLES];
 
 Uint64 perfFrequency = 0;
@@ -95,6 +95,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     perfCounterPrev = SDL_GetPerformanceCounter();
     perfFrequency = SDL_GetPerformanceFrequency();
 
+    cam.horizontalBounds.x = -2.0f;
+    cam.horizontalBounds.y = 2.0f;
+
     return SDL_APP_CONTINUE;
 
 }
@@ -102,6 +105,13 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     if (event->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
         return SDL_APP_SUCCESS;
+    } else if (event->type == SDL_EVENT_MOUSE_WHEEL) {
+        // > 0 means scrolling up
+        if (event->wheel.y > 0) {
+            cam.zoom -= 0.04f;
+        } else if (event->wheel.y < 0) {
+            cam.zoom += 0.04f;
+        }
     }
 
     return SDL_APP_CONTINUE;
@@ -170,9 +180,15 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         glm_vec3_copy(newPos, particles[i].robj.position.arr);
 
 
-        if (abs(particles[i].robj.position.x) > 1.0f || abs(particles[i].robj.position.y) > 1.0f) {
-            particles[i].velocity[0] *= -1.0f;
-            particles[i].velocity[1] *= -1.0f;
+        particles[i].robj.position.x = glm_clamp(particles[i].robj.position.x, -1.0f, 1.0f);
+        particles[i].robj.position.y = glm_clamp(particles[i].robj.position.y, -1.0f, 1.0f);
+
+        if (abs(particles[i].robj.position.x) >= 1.0f) {
+            particles[i].velocity[0] *= -0.9;
+        }
+
+        if (abs(particles[i].robj.position.y) >= 1.0f) {
+            particles[i].velocity[1] *= -0.9;
         }
 
         render_queue_add(&rQueue, &particles[i].robj);

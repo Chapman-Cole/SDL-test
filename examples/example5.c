@@ -23,6 +23,8 @@ bool relMouseMode = false;
 
 float mouseSensitivity = 0.005f;
 
+bool prevEscPressCondition = false;
+
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
@@ -122,8 +124,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     glm_euler_xyz_quat((vec3){cam.direction.y, cam.direction.z, 0.0f}, camQuat);
     glm_quat_rotatev(camQuat, initialDir, cam.direction.arr);
 
-    glm_vec3_print(cam.direction.arr, stdout);
-
     float speed = 50.0f;
     vec3 tempVec;
     const bool* state = SDL_GetKeyboardState(NULL);
@@ -156,10 +156,11 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     }
 
     // When the escape key is hit, toggle mouse mode
-    if (state[SDL_SCANCODE_ESCAPE]) {
+    if (state[SDL_SCANCODE_ESCAPE] == true && prevEscPressCondition == false) {
         relMouseMode = !relMouseMode;
         SDL_SetWindowRelativeMouseMode(get_SDL_main_window(), relMouseMode);
     }
+    prevEscPressCondition = state[SDL_SCANCODE_ESCAPE];
 
     uniform_buffer_set_float(
         &graphicsPipeline.vertexFrameData,
