@@ -112,16 +112,19 @@ int render_queue_submit(RenderQueue* queue) {
     // This is the MVP matrix, or model, view, projection matrix. 
     // In the case of a 2D camera, there is no projection matrix
     mat4 MVP;
-    glm_mat4_identity(MVP);
     
     if (queue->isCam3D == true) {
-        glm_perspective(glm_rad(queue->fov), queue->aspectRatio, queue->nearZ, queue->farZ, MVP);
+        mat4 tempPerspective;
+        glm_perspective(glm_rad(queue->fov), queue->aspectRatio, queue->nearZ, queue->farZ, tempPerspective);
 
+        mat4 tempView;
         if (queue->cam.treatDirectionAsTarget == true) {
-            glm_lookat(queue->cam.position.arr, queue->cam.target.arr, queue->cam.up.arr, MVP);
+            glm_lookat(queue->cam.position.arr, queue->cam.target.arr, queue->cam.up.arr, tempView);
         } else {
-            glm_look(queue->cam.position.arr, queue->cam.direction.arr, queue->cam.up.arr, MVP);
+            glm_look(queue->cam.position.arr, queue->cam.direction.arr, queue->cam.up.arr, tempView);
         }
+
+        glm_mat4_mul(tempPerspective, tempView, MVP);
     } else {
         // The negative sign is because the objects in the world need to be translated in the opposite direction
         // that the camera would move

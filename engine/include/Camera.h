@@ -26,9 +26,14 @@ typedef struct Camera {
     float fov;
     float nearZ;
     float farZ;
+
+    // This is not used by the engine, it is just here in case
+    // users want to track the rotation of the camera easier. In practice,
+    // rotating the camera means changing the direction/target vector
+    CameraVector3D rotation;
 } Camera;
 
-#define CAMERA_DEFAULT (Camera){.position.arr = {0.0f, 0.0f, 0.0f}, .direction.arr = {0.0f, 0.0f, 1.0f}, .up.arr = {0.0f, 1.0f, 0.0f}, .treatDirectionAsTarget = false, .fov = 90, .nearZ = 0.1f, .farZ = 1000.0f}
+#define CAMERA_DEFAULT (Camera){.position.arr = {0.0f, 0.0f, 0.0f}, .direction.arr = {0.0f, 0.0f, 1.0f}, .up.arr = {0.0f, 1.0f, 0.0f}, .treatDirectionAsTarget = false, .fov = 90, .nearZ = 0.1f, .farZ = 1000.0f, .rotation.arr = {0.0f, 0.0f, 0.0f}}
 
 typedef union CameraVector2D {
     vec2 arr;

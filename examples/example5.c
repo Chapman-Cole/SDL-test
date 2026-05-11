@@ -13,6 +13,16 @@ float appTime = 0.0;
 
 Camera cam = CAMERA_DEFAULT;
 
+float mouseX = 0.0f; 
+float mouseY = 0.0f;
+
+float prevMouseX = 0.0f;
+float prevMouseY = 0.0f;
+
+bool relMouseMode = false;
+
+float mouseSensitivity = 0.005f;
+
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
@@ -59,7 +69,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     GPB_init();
 
     render_object_create(&testObj, &graphicsPipeline, &objMat);
-    meshobject_load_objfile(&testObj.mesh, STRING("../objects/Atom.obj"));
+    meshobject_load_objfile(&testObj.mesh, STRING("../objects/Plane.obj"));
+    testObj.scale.x = 0.1f;
+    testObj.scale.y = 0.1f;
+    testObj.scale.z = 0.1f;
     
     perfCounterPrev = SDL_GetPerformanceCounter();
     perfFrequency = SDL_GetPerformanceFrequency();
@@ -87,17 +100,29 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     int windowWidth, windowHeight;
     SDL_GetWindowSizeInPixels(get_SDL_main_window(), &windowWidth, &windowHeight);
 
-    float mouseX, mouseY;
-    SDL_GetMouseState(&mouseX, &mouseY);
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
 
-    mouseX = (mouseX / (float)windowWidth) * 2.0f - 1.0f;
-    mouseY = -((mouseY / (float)windowHeight) * 2.0f - 1.0f);
+    float mouseDeltaX = 0.0f;
+    float mouseDeltaY = 0.0f;
 
-    vec3 tempDir = {0.0f, 0.0f, 1.0f};
-    glm_vec3_rotate(tempDir, mouseX * SDL_PI_F, (vec3){0.0f, 1.0f, 0.0f});
-    glm_vec3_rotate(tempDir, mouseY * SDL_PI_F / 2.0f, (vec3){1.0f, 0.0f, 0.0f});
-    glm_vec3_copy(tempDir, cam.direction.arr);
-    glm_normalize(cam.direction.arr);
+    if (relMouseMode == true) {
+        SDL_GetRelativeMouseState(&mouseDeltaX, &mouseDeltaY);
+    }
+
+    cam.rotation.y += mouseDeltaX * mouseSensitivity;
+    cam.rotation.x -= mouseDeltaY * mouseSensitivity;
+    // -0.01 is to prevent weird singularity behavior at exactly 90deg in the lookat matrix
+    cam.rotation.x = glm_clamp(cam.rotation.x, -SDL_PI_F / 2.0f + 0.01, SDL_PI_F / 2.0f - 0.01);
+    //SDL_Log("x: %f | y: %f", cam.rotation.x, cam.rotation.y);
+
+    vec3 initialDir = {0.0f, 0.0f, 1.0f};
+
+    versor camQuat;
+    glm_euler_xyz_quat((vec3){cam.direction.y, cam.direction.z, 0.0f}, camQuat);
+    glm_quat_rotatev(camQuat, initialDir, cam.direction.arr);
+
+    glm_vec3_print(cam.direction.arr, stdout);
 
     float speed = 50.0f;
     vec3 tempVec;
@@ -115,10 +140,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     glm_normalize(camRight);
 
     if (state[SDL_SCANCODE_A]) {
-        glm_vec3_scale(camRight, elapsed, tempVec);
+        glm_vec3_scale(camRight, -elapsed, tempVec);
         glm_vec3_add(cam.position.arr, tempVec, cam.position.arr);
     } else if (state[SDL_SCANCODE_D]) {
-        glm_vec3_scale(camRight, -elapsed, tempVec);
+        glm_vec3_scale(camRight, elapsed, tempVec);
         glm_vec3_add(cam.position.arr, tempVec, cam.position.arr);
     }
 
@@ -128,6 +153,12 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     } else if (state[SDL_SCANCODE_LSHIFT]) {
         glm_vec3_scale(cam.up.arr, -elapsed, tempVec);
         glm_vec3_add(cam.position.arr, tempVec, cam.position.arr);
+    }
+
+    // When the escape key is hit, toggle mouse mode
+    if (state[SDL_SCANCODE_ESCAPE]) {
+        relMouseMode = !relMouseMode;
+        SDL_SetWindowRelativeMouseMode(get_SDL_main_window(), relMouseMode);
     }
 
     uniform_buffer_set_float(
