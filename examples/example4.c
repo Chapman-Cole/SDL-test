@@ -12,7 +12,7 @@ typedef struct Particle {
 GraphicsPipeline graphicsPipeline;
 Material objMat;
 
-#define NUM_PARTICLES 4000
+#define NUM_PARTICLES 5000
 Particle particles[NUM_PARTICLES];
 
 Uint64 perfFrequency = 0;
@@ -178,7 +178,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         glm_vec3_add(particles[i].robj.position.arr, tempVec, newPos);
 
         glm_vec3_copy(newPos, particles[i].robj.position.arr);
-
 
         particles[i].robj.position.x = glm_clamp(particles[i].robj.position.x, -1.0f, 1.0f);
         particles[i].robj.position.y = glm_clamp(particles[i].robj.position.y, -1.0f, 1.0f);

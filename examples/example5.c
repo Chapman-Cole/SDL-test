@@ -120,9 +120,11 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     vec3 initialDir = {0.0f, 0.0f, 1.0f};
 
-    versor camQuat;
-    glm_euler_xyz_quat((vec3){cam.direction.y, cam.direction.z, 0.0f}, camQuat);
-    glm_quat_rotatev(camQuat, initialDir, cam.direction.arr);
+    versor pitch, yaw, quatCombined;
+    glm_quatv(pitch, -cam.rotation.x, (vec3){1.0f, 0.0f, 0.0f});
+    glm_quatv(yaw, -cam.rotation.y, (vec3){0.0f, 1.0f, 0.0f});
+    glm_quat_mul(yaw, pitch, quatCombined);
+    glm_quat_rotatev(quatCombined, initialDir, cam.direction.arr);
 
     float speed = 50.0f;
     vec3 tempVec;
