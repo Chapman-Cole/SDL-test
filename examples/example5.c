@@ -3,9 +3,16 @@
 #include <SDL3/SDL.h>
 #include "engine.h"
 
+typedef struct Particle {
+    RenderObject robj;
+    vec3 velocity;
+} Particle;
+
 GraphicsPipeline graphicsPipeline;
 Material objMat;
-RenderObject testObj;
+
+#define NUM_PARTICLES 5000
+Particle particles[NUM_PARTICLES];
 
 Uint64 perfFrequency = 0;
 Uint64 perfCounterPrev = 0;
@@ -70,11 +77,21 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     GPB_init();
 
-    render_object_create(&testObj, &graphicsPipeline, &objMat);
-    meshobject_load_objfile(&testObj.mesh, STRING("../objects/Plane.obj"));
-    testObj.scale.x = 0.1f;
-    testObj.scale.y = 0.1f;
-    testObj.scale.z = 0.1f;
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        render_object_create(&particles[i].robj, &graphicsPipeline, &objMat);
+        meshobject_load_objfile(&particles[i].robj.mesh, STRING("../objects/Icosphere.obj"));
+        particles[i].robj.scale.x = 0.01;
+        particles[i].robj.scale.y = 0.01;
+        particles[i].robj.scale.z = 0.01;
+
+        glm_vec3_copy((vec3){2.0f * (SDL_randf() - 0.5f), 2.0f * (SDL_randf() - 0.5f), 2.0f * (SDL_randf() - 0.5f)}, particles[i].robj.position.arr);
+        glm_vec3_copy((vec3){2.0f * (SDL_randf() - 0.5f), 2.0f * (SDL_randf() - 0.5f), 2.0f * (SDL_randf() - 0.5f)}, particles[i].velocity);
+
+
+        if (glm_vec3_norm(particles[i].velocity) == 0.0f) {
+            glm_vec3_copy((vec3){2.0f * (SDL_randf() - 0.5f), 2.0f * (SDL_randf() - 0.5f), 2.0f * (SDL_randf() - 0.5f)}, particles[i].velocity);
+        }
+    }
     
     perfCounterPrev = SDL_GetPerformanceCounter();
     perfFrequency = SDL_GetPerformanceFrequency();
@@ -114,9 +131,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     cam.rotation.y += mouseDeltaX * mouseSensitivity;
     cam.rotation.x -= mouseDeltaY * mouseSensitivity;
-    // -0.01 is to prevent weird singularity behavior at exactly 90deg in the lookat matrix
+    // +-0.01 is to prevent weird singularity behavior at exactly 90deg in the lookat matrix
     cam.rotation.x = glm_clamp(cam.rotation.x, -SDL_PI_F / 2.0f + 0.01, SDL_PI_F / 2.0f - 0.01);
-    //SDL_Log("x: %f | y: %f", cam.rotation.x, cam.rotation.y);
 
     vec3 initialDir = {0.0f, 0.0f, 1.0f};
 
@@ -178,8 +194,33 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     );
 
     render_queue_init(&rQueue, &cam, (float)windowWidth / (float)windowHeight);
+    rQueue.backgroundColor = (SDL_FColor){0.0f, 0.0f, 0.0f, 1.0f};
 
-    render_queue_add(&rQueue, &testObj);
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        vec3 tempVel;
+        glm_vec3_scale(particles[i].velocity, elapsed, tempVel);
+        vec3 tempPos;
+        glm_vec3_add(tempVel, particles[i].robj.position.arr, tempPos);
+        glm_vec3_copy(tempPos, particles[i].robj.position.arr);
+
+        glm_vec3_clamp(particles[i].robj.position.arr, -1.0f, 1.0f);
+
+        if (abs(particles[i].robj.position.x) >= 1.0f) {
+            particles[i].velocity[0] *= -0.9f;
+        }
+
+        if (abs(particles[i].robj.position.y) >= 1.0f) {
+            particles[i].velocity[1] *= -0.9f;
+        }
+
+        if (abs(particles[i].robj.position.z) >= 1.0f) {
+            particles[i].velocity[2] *= -0.9f;
+        }
+
+        glm_vec3_copy(particles[i].velocity, (float*)particles[i].robj.fragmentUniform.uniform);
+
+        render_queue_add(&rQueue, &particles[i].robj);
+    }
 
     render_queue_submit(&rQueue);
 
@@ -187,7 +228,9 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
-    render_object_destroy(&testObj);
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        render_object_destroy(&particles[i].robj);
+    }
     material_destroy(&objMat);
     graphics_pipeline_destroy(&graphicsPipeline);
 

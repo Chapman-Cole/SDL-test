@@ -72,11 +72,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         particles[i].robj.scale.x = 0.002;
         particles[i].robj.scale.y = 0.004;
 
-        glm_vec3_copy((vec3){2 * (SDL_randf() - 0.5), 2 * (SDL_randf() - 0.5)}, particles[i].robj.position.arr);
+        glm_vec3_copy((vec3){2 * (SDL_randf() - 0.5), 2 * (SDL_randf() - 0.5), 0.0f}, particles[i].robj.position.arr);
         //glm_vec3_copy((vec3){0.7 * 2.0 * (SDL_randf() - 0.5), 0.7 * 2.0 * (SDL_randf() - 0.5), 0.0f}, particles[i].velocity);
         particles[i].velocity[0] = 1.0f;
         particles[i].velocity[1] = 1.0f;
-        particles[i].velocity[2] = 1.0f;
+        particles[i].velocity[2] = 0.0f;
         glm_vec3_rotate(particles[i].velocity, 2.0f * SDL_PI_F * SDL_randf(), (vec3){0.0f, 0.0f, 1.0f});
         vec3 tempVec;
         glm_vec3_copy(particles[i].velocity, tempVec);
