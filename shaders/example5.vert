@@ -9,8 +9,7 @@ layout (std140, set = 1, binding = 0) uniform EngineObjectData {
 } EOData;
 
 layout (std140, set = 1, binding = 1) uniform UserFrameData {
-    float aspectRatio;
-    vec3 pad;
+    vec4 pad;
 } UFData;
 
 layout (std140, set = 1, binding = 2) uniform UserObjectData {
