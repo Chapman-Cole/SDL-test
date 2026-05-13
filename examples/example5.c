@@ -68,12 +68,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     graphics_pipeline_generate(&graphicsPipeline);
 
     material_create(&objMat, &graphicsPipeline);
-    uniform_buffer_set_vec(
-        &objMat.uniform,
-        material_get_handle(&objMat, &STRING("color")),
-        (vec4){1.0f, 1.0f, 0.3f, 1.0f},
-        4
-    );
 
     GPB_init();
 
