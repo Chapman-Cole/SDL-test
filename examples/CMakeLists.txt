@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 4.1.0)
 project(examples LANGUAGES C CXX)
 
+if (MSVC)
+    add_compile_options(/experimental:c11atomics)
+    
+    # This generates debug symbol files even for release builds, which is helpful for
+    # profiling
+    add_compile_options("$<$<CONFIG:RELEASE>:/Zi>")
+    add_link_options("$<$<CONFIG:RELEASE>:/DEBUG:FULL>")
+endif()
+
 # Depending on what the user sets this variable to, either the shared library or dynamic library will be used
 # for the executable. By default, USE_STATIC_ENGINE is OFF, meaning the shared library version will be used
 if(USE_STATIC_ENGINE)

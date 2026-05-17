@@ -8,7 +8,7 @@
 #include "UniformBuffer.h"
 #include <stdatomic.h>
 
-static _Atomic(uint32_t) graphics_pipeline_idCount = 0;
+static _Atomic uint32_t graphics_pipeline_idCount = 0;
 
 typedef struct GraphicsPipelineFactory {
     SDL_GPUShader* vertex_shader;

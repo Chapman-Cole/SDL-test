@@ -8,13 +8,10 @@
 #include "MeshObject.h"
 #include "RenderObject.h"
 #include "Camera.h"
-
-// The high/top 32 bits of the high key are dedicated for the graphics pipeline id,
-// the low/bottom 32 bits of the high key are dedicated for the material id.
-// The high/top 32 bits of the 
+ 
 typedef struct RenderItemSortKey {
-    uint64_t low;
-    uint64_t high;
+    uint64_t high; // top 32 bits represent the graphics pipeline id, and the bottom 32 bits represent the material id
+    uint64_t low; // material id
 } RenderItemSortKey;
 
 typedef struct RenderItem {

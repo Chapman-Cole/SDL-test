@@ -7,7 +7,7 @@ include(cmake/find_VulkanComponents.cmake)
 include(cmake/find_cglm.cmake)
 
 # This is helpful for vscode projects
-#set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Place all executables and dlls in a bin folder
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<0:>")
@@ -20,6 +20,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 if(MSVC)
     add_compile_options(/experimental:c11atomics)
+
+    # This generates debug symbol files even for release builds, which is helpful for
+    # profiling
+    add_compile_options("$<$<CONFIG:RELEASE>:/Zi>")
+    add_link_options("$<$<CONFIG:RELEASE>:/DEBUG:FULL>")
 endif()
 
 option(USE_STATIC_ENGINE "Use the static library version of the engine (off by default)" OFF)

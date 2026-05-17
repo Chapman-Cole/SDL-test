@@ -62,7 +62,7 @@ int render_queue_add(RenderQueue* queue, RenderObject* object) {
     return 0;
 }
 
-int render_queue_sort(RenderQueue* queue) {
+int render_queue_sort_basic(RenderQueue* queue) {
     // Basic insertion algorithm for now. Could be interesting to look into something more efficient like merge sort
     // later on, but for now I think insertion sort should be plenty goods
 
@@ -81,9 +81,57 @@ int render_queue_sort(RenderQueue* queue) {
     return 0;
 }
 
+// Uses radix sorting for better speed at large numbers
+int render_queue_sort_radix(RenderQueue* queue) {
+    RenderItem* itemSrc = queue->renderItems;
+    RenderItem* itemDest = (RenderItem*)SDL_malloc(queue->len * sizeof(RenderItem));
+    if (itemDest == NULL) {
+        SDL_Log("Failed to allocate memory for tempItems");
+        SDL_Quit();
+        exit(-1);
+    }
+
+    // 8 passes of 8 bytes each for the buckets since the sort key is currently just a 64 bit integer. Adjust this 
+    // as needed if the sort key is modified
+    for (uint32_t i = 0; i < 8; i++) {
+        uint32_t count_arr[256] = {0};
+        uint32_t offset_arr[256] = {0};
+
+        int numBitShifts = i * 8;
+
+        for (uint32_t j = 0; j < queue->len; j++) {
+            // the & 0xFF clears out all other bits aside from the first 8, which is the byte value we want
+            uint8_t currByte = (itemSrc[j].sortKey.high >> numBitShifts) & 0xFF;
+            count_arr[currByte]++;
+        }
+
+        uint32_t currTotal = 0;
+        for (uint32_t j = 0; j < 256; j++) {
+            offset_arr[j] = currTotal;
+            currTotal += count_arr[j];
+        }
+
+        for (uint32_t j = 0; j < queue->len; j++) {
+            uint8_t currByte = (itemSrc[j].sortKey.high >> numBitShifts) & 0xFF;
+
+            itemDest[offset_arr[currByte]] = itemSrc[j];
+
+            offset_arr[currByte]++;
+        }
+
+        // Swap the buffers
+        RenderItem* temp = itemSrc;
+        itemSrc = itemDest;
+        itemDest = temp;
+    }
+
+    SDL_free(itemDest);
+    return 0;
+}
+
 int render_queue_submit(RenderQueue* queue) {
-    // Sort the render queue before continuing
-    render_queue_sort(queue);
+    //render_queue_sort_radix(queue);
+    render_queue_sort_basic(queue);
 
     // Make sure all transfer buffers and data uploads are done before rendering
     GPB_submit_all_transfer_buffers();

@@ -5,7 +5,7 @@
 #include "UniformBuffer.h"
 #include <stdatomic.h>
 
-static _Atomic(uint32_t) mat_idCount = 0;
+static _Atomic uint32_t mat_idCount = 0;
 
 typedef struct Material {
     uint32_t id;

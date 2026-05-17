@@ -17,6 +17,11 @@ add_library(EngineObjectLib OBJECT ../external/SPIRV-Reflect/spirv_reflect.c src
 # MSVC can have issues when trying to compile using stdatomics
 if(MSVC)
     target_compile_options(EngineObjectLib PRIVATE /experimental:c11atomics)
+
+    # This generates debug symbol files even for release builds, which is helpful for
+    # profiling
+    add_compile_options("$<$<CONFIG:RELEASE>:/Zi>")
+    add_link_options("$<$<CONFIG:RELEASE>:/DEBUG:FULL>")
 endif()
 
 # Provide the object library with the necessary include directories for compilation
