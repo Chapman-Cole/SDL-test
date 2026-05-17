@@ -55,4 +55,8 @@ int render_queue_add(RenderQueue* queue, RenderObject* object);
 
 int render_queue_submit(RenderQueue* queue);
 
+int render_queue_sort_basic(RenderQueue* queue);
+
+int render_queue_sort_radix(RenderQueue* queue);
+
 #endif

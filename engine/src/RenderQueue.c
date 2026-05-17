@@ -130,8 +130,7 @@ int render_queue_sort_radix(RenderQueue* queue) {
 }
 
 int render_queue_submit(RenderQueue* queue) {
-    //render_queue_sort_radix(queue);
-    render_queue_sort_basic(queue);
+    render_queue_sort_radix(queue);
 
     // Make sure all transfer buffers and data uploads are done before rendering
     GPB_submit_all_transfer_buffers();
