@@ -54,6 +54,35 @@ int render_queue_add(RenderQueue* queue, RenderObject* object) {
         .material = object->material,
         .pipeline = object->pipeline,
         .object = object,
+        .objectType = RENDER_ITEM_OBJECT,
+        .sortKey = key
+    };
+
+    queue->len++;
+
+    return 0;
+}
+
+int render_queue_add_instanced(RenderQueue* queue, InstanceRenderObject* object) {
+    if (queue->len + 1 >= queue->capacity) {
+        queue->capacity *= 2;
+        queue->renderItems = (RenderItem*)SDL_realloc(queue->renderItems, queue->capacity * sizeof(RenderItem));
+        if (queue->renderItems == NULL) {
+            SDL_Log("Failed to allocate memory for render_queue.");
+            SDL_Quit();
+            exit(-1);
+        }
+    }
+
+    RenderItemSortKey key;
+    key.high = (uint64_t)object->pipeline->id << 32;
+    key.high += object->material->id;
+
+    queue->renderItems[queue->len] = (RenderItem){
+        .material = object->material,
+        .pipeline = object->pipeline,
+        .instanceObject = object,
+        .objectType = RENDER_ITEM_INSTANCED_OBJECT,
         .sortKey = key
     };
 
@@ -160,8 +189,8 @@ int render_queue_submit(RenderQueue* queue) {
 
     // This is the MVP matrix, or model, view, projection matrix. 
     // In the case of a 2D camera, there is no projection matrix
-    mat4 MVP;
-    glm_mat4_identity(MVP);
+    mat4 VP;
+    glm_mat4_identity(VP);
     
     if (queue->isCam3D == true) {
         mat4 tempPerspective;
@@ -174,7 +203,7 @@ int render_queue_submit(RenderQueue* queue) {
             glm_look(queue->cam.position.arr, queue->cam.direction.arr, queue->cam.up.arr, tempView);
         }
 
-        glm_mat4_mul(tempPerspective, tempView, MVP);
+        glm_mat4_mul(tempPerspective, tempView, VP);
     } else {
         if (queue->cam2D.fitAspectRatio == true) {
             // Calculate the new x bounds in order to make the aspect ratio work properly
@@ -190,7 +219,7 @@ int render_queue_submit(RenderQueue* queue) {
             float yLowBound = centerY - newDistY / 2.0f;
             float yHighBound = centerY + newDistY / 2.0f;
 
-            glm_ortho(xLowBound, xHighBound, yLowBound, yHighBound, queue->nearZ, queue->farZ, MVP);
+            glm_ortho(xLowBound, xHighBound, yLowBound, yHighBound, queue->nearZ, queue->farZ, VP);
         } else {
             // Calculations for the zoom
             float centerX = (queue->cam2D.horizontalBounds.x + queue->cam2D.horizontalBounds.y) / 2.0f;
@@ -205,10 +234,10 @@ int render_queue_submit(RenderQueue* queue) {
             float yLowBound = centerY - newDistY / 2.0f;
             float yHighBound = centerY + newDistY / 2.0f;
 
-            glm_ortho(xLowBound, xHighBound, yLowBound, yHighBound, queue->nearZ, queue->farZ, MVP);
+            glm_ortho(xLowBound, xHighBound, yLowBound, yHighBound, queue->nearZ, queue->farZ, VP);
         }
 
-        glm_translate(MVP, (vec3){-queue->cam2D.position.x, -queue->cam2D.position.y, 0.0f});
+        glm_translate(VP, (vec3){-queue->cam2D.position.x, -queue->cam2D.position.y, 0.0f});
     }
 
     // Start the main loop for binding and draw calls
@@ -237,39 +266,76 @@ int render_queue_submit(RenderQueue* queue) {
         }
 
         // Push engine object data
-        mat4 objectTransform;
-        glm_mat4_identity(objectTransform);
-        glm_translate(objectTransform, queue->renderItems[i].object->position.arr);
-        mat4 tempRotation;
-        glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, tempRotation);
-        glm_scale(tempRotation, queue->renderItems[i].object->scale.arr);
 
-        mat4 testMult;
-        glm_mat4_mul(MVP, tempRotation, testMult);
+        if (queue->renderItems[i].objectType == RENDER_ITEM_OBJECT) {
+            mat4 objectTransform;
+            glm_mat4_identity(objectTransform);
+            glm_translate(objectTransform, queue->renderItems[i].object->position.arr);
+            mat4 tempRotation;
+            glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, tempRotation);
+            glm_scale(tempRotation, queue->renderItems[i].object->scale.arr);
 
-        SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, testMult, sizeof(mat4));
+            mat4 objectData[2];
+            glm_mat4_copy(VP, objectData[0]);
+            glm_mat4_copy(tempRotation, objectData[1]);
 
-        // Push user object specific data
-        if (queue->renderItems[i].object->vertexUniform.uniform != NULL) {
-            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->vertexUniform.uniform, queue->renderItems[i].object->vertexUniform.uniformSize);
+            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, objectData, sizeof(objectData));
+
+            // Push user object specific data
+            if (queue->renderItems[i].object->vertexUniform.uniform != NULL) {
+                SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->vertexUniform.uniform, queue->renderItems[i].object->vertexUniform.uniformSize);
+            }
+
+            if (queue->renderItems[i].object->fragmentUniform.uniform != NULL) {
+                SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->fragmentUniform.uniform, queue->renderItems[i].object->fragmentUniform.uniformSize);
+            }
+
+            SDL_GPUBufferBinding bufferBindings[1];
+            bufferBindings[0].buffer = queue->renderItems[i].object->mesh.vertexBuffer;
+            bufferBindings[0].offset = 0;
+
+            SDL_GPUBufferBinding indexBinding;
+            indexBinding.buffer = queue->renderItems[i].object->mesh.indexBuffer;
+            indexBinding.offset = 0;
+
+            SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, 1);
+            SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+
+            SDL_DrawGPUIndexedPrimitives(renderPass, queue->renderItems[i].object->mesh.numIndices, 1, 0, 0, 0);
+        } else if (queue->renderItems[i].objectType == RENDER_ITEM_INSTANCED_OBJECT) {
+            mat4 objectTransform;
+            glm_mat4_identity(objectTransform);
+            mat4 tempRotation;
+            glm_quat_rotate(objectTransform, queue->renderItems[i].instanceObject->quaternion, tempRotation);
+            glm_scale(tempRotation, queue->renderItems[i].instanceObject->scale);
+
+            mat4 objectData[2];
+            glm_mat4_copy(VP, objectData[0]);
+            glm_mat4_copy(tempRotation, objectData[1]);
+
+            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, objectData, sizeof(objectData));
+
+            // Push user object specific data
+            if (queue->renderItems[i].object->vertexUniform.uniform != NULL) {
+                SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->vertexUniform.uniform, queue->renderItems[i].object->vertexUniform.uniformSize);
+            }
+
+            if (queue->renderItems[i].object->fragmentUniform.uniform != NULL) {
+                SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->fragmentUniform.uniform, queue->renderItems[i].object->fragmentUniform.uniformSize);
+            }
+
+            SDL_GPUBufferBinding bufferBindings[2] = {
+                {.buffer = queue->renderItems[i].instanceObject->mesh.vertexBuffer, .offset = 0},
+                {.buffer = queue->renderItems[i].instanceObject->instanceBuffer, .offset = 0}
+            };
+
+            SDL_GPUBufferBinding indexBinding = {.buffer = queue->renderItems[i].instanceObject->mesh.indexBuffer, .offset = 0};
+
+            SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, 2);
+            SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+
+            SDL_DrawGPUIndexedPrimitives(renderPass, queue->renderItems[i].instanceObject->mesh.numIndices, queue->renderItems[i].instanceObject->numInstances, 0, 0, 0);
         }
-
-        if (queue->renderItems[i].object->fragmentUniform.uniform != NULL) {
-            SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->fragmentUniform.uniform, queue->renderItems[i].object->fragmentUniform.uniformSize);
-        }
-
-        SDL_GPUBufferBinding bufferBindings[1];
-        bufferBindings[0].buffer = queue->renderItems[i].object->mesh.vertexBuffer;
-        bufferBindings[0].offset = 0;
-
-        SDL_GPUBufferBinding indexBinding;
-        indexBinding.buffer = queue->renderItems[i].object->mesh.indexBuffer;
-        indexBinding.offset = 0;
-
-        SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, 1);
-        SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
-
-        SDL_DrawGPUIndexedPrimitives(renderPass, queue->renderItems[i].object->mesh.numIndices, 1, 0, 0, 0);
     }
 
     SDL_EndGPURenderPass(renderPass);

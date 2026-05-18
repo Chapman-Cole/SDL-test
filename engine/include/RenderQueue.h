@@ -8,16 +8,27 @@
 #include "MeshObject.h"
 #include "RenderObject.h"
 #include "Camera.h"
+#include "InstanceRenderObject.h"
  
 typedef struct RenderItemSortKey {
     uint64_t high; // top 32 bits represent the graphics pipeline id, and the bottom 32 bits represent the material id
     uint64_t low; // material id
 } RenderItemSortKey;
 
+typedef enum {
+    RENDER_ITEM_OBJECT,
+    RENDER_ITEM_INSTANCED_OBJECT
+} RenderItemObjectType;
+
 typedef struct RenderItem {
     RenderItemSortKey sortKey;
     GraphicsPipeline* pipeline;
-    RenderObject* object;
+    union {
+        RenderObject* object;
+        InstanceRenderObject* instanceObject;
+    };
+    // References options from the enum RenderItemObjectType
+    uint8_t objectType;
     Material* material;
 } RenderItem;
 
@@ -52,6 +63,8 @@ int render_queue_init2D(RenderQueue* queue, Camera2D* cam2D, float aspectRatio);
 int render_queue_destroy(RenderQueue* queue);
 
 int render_queue_add(RenderQueue* queue, RenderObject* object);
+
+int render_queue_add_instanced(RenderQueue* queue, InstanceRenderObject* object);
 
 int render_queue_submit(RenderQueue* queue);
 

@@ -10,5 +10,6 @@
 #include "Window.h"
 #include "RenderQueue.h"
 #include "Camera.h"
+#include "InstanceRenderObject.h"
 
 #endif
