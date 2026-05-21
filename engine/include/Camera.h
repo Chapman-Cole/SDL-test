@@ -60,5 +60,9 @@ typedef struct Camera2D {
 
 #define CAMERA2D_DEFAULT {.position.arr = {0.0f, 0.0f}, .horizontalBounds.arr = {-1.0f, 1.0f}, .verticalBounds.arr = {-1.0f, 1.0f}, .nearZ = 0.1f, .farZ = 1000.0f, .fitAspectRatio = true, .zoom = 1.0f}
 
+int camera2D_screen_to_world(Camera2D* cam, float aspectRatio, vec2 screen, vec2 out);
+
+int camera_screen_to_world(Camera* cam, vec2 screen, vec3 out);
+
 
 #endif

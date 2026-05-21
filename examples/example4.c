@@ -16,7 +16,7 @@ GraphicsPipeline graphicsPipeline;
 
 Material objMat1;
 
-#define NUM_PARTICLES 30000
+#define NUM_PARTICLES 150000
 Particle particles;
 
 Uint64 perfFrequency = 0;
@@ -178,12 +178,15 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         cam.position.y += mouseDeltaY * elapsed;
     }
 
+    vec2 mousePos;
+    camera2D_screen_to_world(&cam, (float)windowWidth / (float)windowHeight, (vec2){(mouseX / (float)windowWidth) * 2.0f - 1.0f, -((mouseY / (float)windowHeight) * 2.0f - 1.0f)}, mousePos);
+
     if (state[SDL_SCANCODE_O]) {
         for (int i = 0; i < NUM_PARTICLES; i++) {
-            float distance = glm_vec2_distance((vec2){(mouseX / (float)windowWidth) * 2.0f - 1.0f, -((mouseY / (float)windowHeight) * 2.0f - 1.0f)}, (vec2){((InstanceData*)particles.robj.instanceData)[i].pos[0], ((InstanceData*)particles.robj.instanceData)[i].pos[1]});
+            float distance = glm_vec2_distance(mousePos, (vec2){((InstanceData*)particles.robj.instanceData)[i].pos[0], ((InstanceData*)particles.robj.instanceData)[i].pos[1]});
 
             vec3 direction;
-            glm_vec3_sub((vec3){(mouseX / (float)windowWidth) * 2.0f - 1.0f, -((mouseY / (float)windowHeight) * 2.0f - 1.0f), 0.0f}, ((InstanceData*)particles.robj.instanceData)[i].pos, direction);
+            glm_vec3_sub((vec3){mousePos[0], mousePos[1], 0.0f}, ((InstanceData*)particles.robj.instanceData)[i].pos, direction);
             glm_vec3_normalize(direction);
 
             vec3 tempVec, acceleration;
@@ -201,11 +204,11 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         }
     } else if (state[SDL_SCANCODE_P]) {
         for (int i = 0; i < NUM_PARTICLES; i++) {
-            float distance = glm_vec2_distance((vec2){(mouseX / (float)windowWidth) * 2.0f - 1.0f, -((mouseY / (float)windowHeight) * 2.0f - 1.0f)}, (vec2){((InstanceData*)particles.robj.instanceData)[i].pos[0], ((InstanceData*)particles.robj.instanceData)[i].pos[1]});
+            float distance = glm_vec2_distance(mousePos, (vec2){((InstanceData*)particles.robj.instanceData)[i].pos[0], ((InstanceData*)particles.robj.instanceData)[i].pos[1]});
             float multiplier = 0.1f * SDL_sinf(4.0f * distance - 3.0f * appTime);
 
             vec3 direction, direction2;
-            glm_vec3_sub((vec3){(mouseX / (float)windowWidth) * 2.0f - 1.0f, -((mouseY / (float)windowHeight) * 2.0f - 1.0f), 0.0f}, ((InstanceData*)particles.robj.instanceData)[i].pos, direction);
+            glm_vec3_sub((vec3){mousePos[0], mousePos[1], 0.0f}, ((InstanceData*)particles.robj.instanceData)[i].pos, direction);
             glm_vec3_normalize(direction);
             glm_vec3_scale(direction, multiplier * elapsed, direction2);
 
@@ -216,11 +219,11 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         }
     } else {
         for (int i = 0; i < NUM_PARTICLES; i++) {
-            float distance = glm_vec2_distance((vec2){(mouseX / (float)windowWidth) * 2.0f - 1.0f, -((mouseY / (float)windowHeight) * 2.0f - 1.0f)}, (vec2){((InstanceData*)particles.robj.instanceData)[i].pos[0], ((InstanceData*)particles.robj.instanceData)[i].pos[1]});
+            float distance = glm_vec2_distance(mousePos, (vec2){((InstanceData*)particles.robj.instanceData)[i].pos[0], ((InstanceData*)particles.robj.instanceData)[i].pos[1]});
             float dropoff = 0.05f / glm_clamp(distance * distance, 0.1f, 1000.0f);
 
             vec3 direction, direction2;
-            glm_vec3_sub((vec3){(mouseX / (float)windowWidth) * 2.0f - 1.0f, -((mouseY / (float)windowHeight) * 2.0f - 1.0f), 0.0f}, ((InstanceData*)particles.robj.instanceData)[i].pos, direction);
+            glm_vec3_sub((vec3){mousePos[0], mousePos[1], 0.0f}, ((InstanceData*)particles.robj.instanceData)[i].pos, direction);
             glm_vec3_normalize(direction);
             glm_vec3_copy(direction, direction2);
 
