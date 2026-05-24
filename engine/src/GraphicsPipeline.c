@@ -13,6 +13,17 @@ int graphics_pipeline_init(GraphicsPipeline* pipeline) {
 
     pipeline->factory->primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
 
+    pipeline->factory->rasterizerState = (SDL_GPURasterizerState){
+        .fill_mode = SDL_GPU_FILLMODE_FILL,
+        .cull_mode = SDL_GPU_CULLMODE_NONE,
+        .front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE,
+        .depth_bias_constant_factor = 0.0f,
+        .depth_bias_clamp = 0.0f,
+        .depth_bias_slope_factor = 0.0f,
+        .enable_depth_bias = false,
+        .enable_depth_clip = false
+    };
+
     pipeline->factory->vertexBufferDescriptionsLen = 0;
     pipeline->factory->vertexBufferDescriptions = NULL;
 
@@ -178,6 +189,21 @@ int graphics_pipeline_attach_fragment_shader(GraphicsPipeline* pipeline, string*
     return 0;
 }
 
+int graphics_pipeline_set_rasterizer_state(GraphicsPipeline* pipeline, uint8_t fillMode, uint8_t cullMode, uint8_t frontFace, float depthBiasFactor, float depthBiasClamp, float depthBiasSlopeFactor, bool enableDepthBias, bool enableDepthClip) {
+    pipeline->factory->rasterizerState = (SDL_GPURasterizerState){
+        .fill_mode = fillMode,
+        .cull_mode = cullMode,
+        .front_face = frontFace,
+        .depth_bias_constant_factor = depthBiasFactor,
+        .depth_bias_clamp = depthBiasClamp,
+        .depth_bias_slope_factor = depthBiasSlopeFactor,
+        .enable_depth_bias = enableDepthBias,
+        .enable_depth_clip = enableDepthClip
+    };
+
+    return 0;
+}
+
 int graphics_pipeline_generate(GraphicsPipeline* pipeline) {
     SDL_GPUGraphicsPipelineCreateInfo pipelineInfo = {0};
 
@@ -193,7 +219,9 @@ int graphics_pipeline_generate(GraphicsPipeline* pipeline) {
         .target_info = (SDL_GPUGraphicsPipelineTargetInfo){
             .num_color_targets = pipeline->factory->colorTargetDescriptionsLen,
             .color_target_descriptions = pipeline->factory->colorTargetDescriptions
-        }
+        },
+        .primitive_type = pipeline->factory->primitive_type,
+        .rasterizer_state = pipeline->factory->rasterizerState
     };
 
     pipeline->graphicsPipeline = SDL_CreateGPUGraphicsPipeline(get_SDL_gpu_device(), &pipelineInfo);

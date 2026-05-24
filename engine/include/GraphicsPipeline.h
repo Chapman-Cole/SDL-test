@@ -23,6 +23,8 @@ typedef struct GraphicsPipelineFactory {
 
     Uint32 colorTargetDescriptionsLen;
     SDL_GPUColorTargetDescription* colorTargetDescriptions;
+
+    SDL_GPURasterizerState rasterizerState;
 } GraphicsPipelineFactory;
 
 typedef struct GraphicsPipeline {
@@ -97,6 +99,17 @@ int graphics_pipeline_attach_vertex_shader(GraphicsPipeline* pipeline, string* s
 // sourceType - Specifies how the source string is interpreted. Can be SHADER_COMPILATION_GLSL_PATH,
 //              SHADER_COMPILATION_GLSL_STRING, SHADER_COMPILATION_SPIRV_PATH, or SHADER_COMPILATION_SPIRV_STRING
 int graphics_pipeline_attach_fragment_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType);
+
+// Sets the rasterizer state for the graphics pipeline
+// fillMode - Can pass either SDL_GPU_FILLMODE_FILL or SDL_GPU_FILLMODE_LINE
+// cullMode - Can pass either SDL_GPU_CULLMODE_NONE, SDL_GPU_CULLMODE_FRONT, or SDL_GPU_CULLMODE_BACK
+// frontFace - Can pass either SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE or SDL_GPU_FRONTFACE_CLOCKWISE
+// depthBiasFactor - The depth value added to each fragment
+// depthBiasClamp - Sets the maximum depth value of a fragment
+// depthBiasSlopeFactor - Scales the slope of each fragment's depth
+// enableDepthBias - If true, it will use the biases on the fragments
+// enableDepthClip - If true, it will clip by depth
+int graphics_pipeline_set_rasterizer_state(GraphicsPipeline* pipeline, uint8_t fillMode, uint8_t cullMode, uint8_t frontFace, float depthBiasFactor, float depthBiasClamp, float depthBiasSlopeFactor, bool enableDepthBias, bool enableDepthClip);
 
 // Uses the specified configurations to generate the internal SDL graphics pipeline
 // This makes it ready for use with rendering. 
