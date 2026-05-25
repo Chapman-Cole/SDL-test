@@ -3,7 +3,7 @@
 
 #include <SDL3/SDL.h>
 #include "Strings.h"
-#include "ShaderUniformLayout.h"
+#include "ShaderLayout.h"
 
 typedef enum ShaderCompilationSourceTypes {
     SHADER_COMPILATION_GLSL_PATH,
@@ -17,6 +17,8 @@ static unsigned int ShaderFormat = SDL_GPU_SHADERFORMAT_SPIRV;
 
 // This should be called once before beginning the compilation of shaders
 void set_shader_format(unsigned int shader_format);
+
+unsigned int get_shader_format(void);
 
 // Compiles glsl source to SPIR-V code
 // glslSource - A pointer to a string containing the glsl source code
@@ -35,7 +37,7 @@ int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* sp
 // a path to the source, or even a path to spirv source code (use the ShaderCompilationSourceTypes enum)
 // shaderLayout - A pointer to a ShaderUniformLayout struct that is used describe how data is laid out in the uniforms
 //                This can be NULL if it is not required
-SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 sourceType, ShaderUniformLayout* shaderLayout);
+SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 sourceType, ShaderLayout* shaderLayout);
 
 // The path string should point to a glsl file, and not a SPIR-V file
 // Operates very similar to the create_vertex_shader function, but for fragment shaders
@@ -43,6 +45,6 @@ SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 
 // a path to the source, or even a path to spirv source code (use the ShaderCompilationSourceTypes enum)
 // shaderLayout - A pointer to a ShaderUniformLayout struct that is used describe how data is laid out in the uniforms
 //                This can be NULL if it is not required.
-SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint32 sourceType, ShaderUniformLayout* shaderLayout);
+SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint32 sourceType, ShaderLayout* shaderLayout);
 
 #endif

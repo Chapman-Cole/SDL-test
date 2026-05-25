@@ -1,5 +1,5 @@
-#ifndef SHADERUNIFORMLAYOUT_H
-#define SHADERUNIFORMLAYOUT_H
+#ifndef SHADERLAYOUT_H
+#define SHADERLAYOUT_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,11 +59,19 @@ typedef struct UniformElementType {
 
 // This struct will define how uniform memory is laid out for the shader, and provide a set of functions
 // for easily setting the named values in the uniform
-typedef struct ShaderUniformLayout {
+typedef struct ShaderLayout {
+    // Mostly useful for vertex and fragment shader creation
     uint32_t num_samplers;
     uint32_t num_storage_buffers;
     uint32_t num_storage_textures;
     uint32_t num_uniform_buffers;
+
+    // Mostly useful for compute shader creation
+    uint32_t num_readonly_storage_buffers;
+    uint32_t num_readwrite_storage_buffers;
+    uint32_t num_readonly_storage_textures;
+    uint32_t num_readwrite_storage_textures;
+    uint32_t num_sampled_textures;
 
     // This stores the elements of the uniform buffer, in the order that they 
     // appear in the uniform buffer of the shader
@@ -74,31 +82,31 @@ typedef struct ShaderUniformLayout {
     // SDL3 gpu api allows a maximum of 4 uniform buffers, and below will store the size in bytes
     // of all the different buffers (if there are that many)
     uint32_t bufferSizes[4];
-} ShaderUniformLayout;
+} ShaderLayout;
 
 // Initializes the shader uniform layout passed in
-int shader_uniform_layout_init(ShaderUniformLayout* shaderLayout);
+int shader_layout_init(ShaderLayout* shaderLayout);
 
 // Properly destroys the initialized ShaderUniformLayout struct
-int shader_uniform_layout_destroy(ShaderUniformLayout* shaderLayout);
+int shader_layout_destroy(ShaderLayout* shaderLayout);
 
 // Extracts the shader layout uniform info using
 // fields of the struct using spirv reflect. This is mostly for internal use to the shader compilation api.
 // spirv_file - A pointer to a string containing the spir-v code
 // shaderLayout - A pointer to a shader layout struct that will store the uniform layout info
-int extract_shader_binding_info(string* spirv_file, ShaderUniformLayout* shaderLayout);
+int extract_shader_binding_info(string* spirv_file, ShaderLayout* shaderLayout);
 
 // Appends an element to the uniformElements array in the given ShaderUniformLayout struct
 // shaderLayout - A pointer to a ShaderUniformLayout struct that contains the given uniformElements array
 // element - A pointer to a UniformElementType struct that contains the data about the element of the uniform
-int shader_uniform_layout_append_element(ShaderUniformLayout* shaderLayout, UniformElementType* element);
+int shader_layout_append_element(ShaderLayout* shaderLayout, UniformElementType* element);
 
 // A simple helper function that takes an input of the of the defined types in the UniformShaderTypes enum
 // and returns a string of its name
-const char* shader_uniform_element_type_get_name(uint8_t elementType);
+const char* shader_layout_element_type_get_name(uint8_t elementType);
 
 // Prints out the elements of the shaderLayout struct for debugging purposes. Specifically
 // the array of elements
-void shader_uniform_elements_print(ShaderUniformLayout* shaderLayout);
+void shader_layout_elements_print(ShaderLayout* shaderLayout);
 
 #endif

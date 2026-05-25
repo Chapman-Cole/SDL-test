@@ -33,8 +33,8 @@ int graphics_pipeline_init(GraphicsPipeline* pipeline) {
     pipeline->factory->colorTargetDescriptionsLen = 0;
     pipeline->factory->colorTargetDescriptions = NULL;
 
-    shader_uniform_layout_init(&pipeline->vertexLayout);
-    shader_uniform_layout_init(&pipeline->fragmentLayout);
+    shader_layout_init(&pipeline->vertexLayout);
+    shader_layout_init(&pipeline->fragmentLayout);
 
     pipeline->id = atomic_fetch_add(&graphics_pipeline_idCount, 1);
 
@@ -67,8 +67,8 @@ int graphics_pipeline_destroy(GraphicsPipeline* pipeline) {
     pipeline->shaders[0] = NULL;
     pipeline->shaders[1] = NULL;
 
-    shader_uniform_layout_destroy(&pipeline->vertexLayout);
-    shader_uniform_layout_destroy(&pipeline->fragmentLayout);
+    shader_layout_destroy(&pipeline->vertexLayout);
+    shader_layout_destroy(&pipeline->fragmentLayout);
 
     uniform_buffer_destroy(&pipeline->vertexFrameData);
     uniform_buffer_destroy(&pipeline->fragmentFrameData);

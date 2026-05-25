@@ -11,5 +11,6 @@
 #include "RenderQueue.h"
 #include "Camera.h"
 #include "InstanceRenderObject.h"
+#include "ShaderLayout.h"
 
 #endif

@@ -1,6 +1,6 @@
 #include "UniformBuffer.h"
 
-int uniform_buffer_create(UniformBuffer* uniform, ShaderUniformLayout* layout, uint8_t slot) {
+int uniform_buffer_create(UniformBuffer* uniform, ShaderLayout* layout, uint8_t slot) {
     uniform->layout = layout;
 
     uniform->uniformSize = layout->bufferSizes[slot];

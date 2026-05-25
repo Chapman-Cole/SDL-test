@@ -9,7 +9,7 @@
 #include "Strings.h"
 #include <cglm/cglm.h>
 #include "Window.h"
-#include "ShaderUniformLayout.h"
+#include "ShaderLayout.h"
 #include "engine.h"
 
 // To compile with debug symbols on linux, do cmake -DCMAKE_BUILD_TYPE=Debug ..

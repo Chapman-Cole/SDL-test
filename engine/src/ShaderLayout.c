@@ -1,11 +1,17 @@
-#include "ShaderUniformLayout.h"
+#include "ShaderLayout.h"
 #include "SPIRV-Reflect/spirv_reflect.h"
 
-int shader_uniform_layout_init(ShaderUniformLayout* shaderLayout) {
+int shader_layout_init(ShaderLayout* shaderLayout) {
     shaderLayout->num_samplers = 0;
     shaderLayout->num_storage_buffers = 0;
     shaderLayout->num_storage_textures = 0;
     shaderLayout->num_uniform_buffers = 0;
+
+    shaderLayout->num_readonly_storage_buffers = 0;
+    shaderLayout->num_readwrite_storage_buffers = 0;
+    shaderLayout->num_readonly_storage_textures = 0;
+    shaderLayout->num_readwrite_storage_textures = 0;
+    shaderLayout->num_sampled_textures = 0;
 
     shaderLayout->uniformElements = NULL;
     shaderLayout->uniformElementsLen = 0;
@@ -19,7 +25,7 @@ int shader_uniform_layout_init(ShaderUniformLayout* shaderLayout) {
     return 0;
 }
 
-int shader_uniform_layout_destroy(ShaderUniformLayout* shaderLayout) {
+int shader_layout_destroy(ShaderLayout* shaderLayout) {
     for (int i = 0; i < shaderLayout->uniformElementsLen; i++) {
         string_free(&shaderLayout->uniformElements[i].name);
     }
@@ -115,7 +121,7 @@ static uint8_t extract_spirv_type_info(const SpvReflectTypeDescription* typeDesc
 // shaderLayout - A pointer to a ShaderUniformLayout struct that contains the uniformElements array
 // block - A pointer to a SpvReflectBlockVariable that contains the block information (this is important for extracting the element information)
 // bindingNum - The current binding num for the current uniform buffer
-static int extract_spirv_element_info(ShaderUniformLayout* shaderLayout, const SpvReflectBlockVariable* block, int bindingNum) {
+static int extract_spirv_element_info(ShaderLayout* shaderLayout, const SpvReflectBlockVariable* block, int bindingNum) {
     if (block->member_count == 0) {
         // This is just useful for debugging
         //SDL_Log("Block Member: name=%s type=%s offset=%u size=%u padded=%u\n",
@@ -127,7 +133,7 @@ static int extract_spirv_element_info(ShaderUniformLayout* shaderLayout, const S
         string_init(&elementName);
         string_copy(&elementName, &(string){.str = (char*)block->name, .len = strlen(block->name), .__memsize = -1});
 
-        shader_uniform_layout_append_element(
+        shader_layout_append_element(
             shaderLayout,
             &(UniformElementType){
                 .bindingNum = bindingNum,
@@ -150,13 +156,7 @@ static int extract_spirv_element_info(ShaderUniformLayout* shaderLayout, const S
     return 0;
 }
 
-int extract_shader_binding_info(string* spirv_file, ShaderUniformLayout* shaderLayout) {
-    // Make sure these values are 0 so the counting later on is accurate
-    shaderLayout->num_samplers = 0;
-    shaderLayout->num_storage_buffers = 0;
-    shaderLayout->num_storage_textures = 0;
-    shaderLayout->num_uniform_buffers = 0;
-
+int extract_shader_binding_info(string* spirv_file, ShaderLayout* shaderLayout) {
     // Extract uniform information by creating spvreflect shader module
     SpvReflectShaderModule module;
     SpvReflectResult result = spvReflectCreateShaderModule(spirv_file->len, spirv_file->str, &module);
@@ -213,18 +213,40 @@ int extract_shader_binding_info(string* spirv_file, ShaderUniformLayout* shaderL
                 for (Uint32 j = 0; j < block->member_count; j++) {
                     extract_spirv_element_info(shaderLayout, &block->members[j], binding->binding);
                 }
-        } else if (
-            binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER
-            || binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-                shaderLayout->num_samplers++;
+        } else if (binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+            // combined image samplers count as both a sampler and as a sampled texture at the same time
+            shaderLayout->num_samplers++;
+            shaderLayout->num_sampled_textures++;
+        } else if (binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE) {
+            shaderLayout->num_sampled_textures++;
+        } else if (binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER) {
+            shaderLayout->num_samplers++;
         } else if (
             binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER
             || binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
                 shaderLayout->num_storage_buffers++;
+
+                const SpvReflectBlockVariable* block = &binding->block;
+                bool isReadOnly = (block->decoration_flags & SPV_REFLECT_DECORATION_NON_WRITABLE) != 0;
+
+                if (isReadOnly == true) {
+                    shaderLayout->num_readonly_storage_buffers++;
+                } else {
+                    shaderLayout->num_readwrite_storage_buffers++;
+                }
         } else if (
             binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE
             || binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER) {
                 shaderLayout->num_storage_textures++;
+
+                const SpvReflectBlockVariable* block = &binding->block;
+                bool isReadOnly = (block->decoration_flags & SPV_REFLECT_DECORATION_NON_WRITABLE) != 0;
+
+                if (isReadOnly == true) {
+                    shaderLayout->num_readonly_storage_textures++;
+                } else {
+                    shaderLayout->num_readwrite_storage_textures;
+                }
         }
     }
 
@@ -235,7 +257,7 @@ int extract_shader_binding_info(string* spirv_file, ShaderUniformLayout* shaderL
     return 0;
 }
 
-int shader_uniform_layout_append_element(ShaderUniformLayout* shaderLayout, UniformElementType* element) {
+int shader_layout_append_element(ShaderLayout* shaderLayout, UniformElementType* element) {
     if (shaderLayout->uniformElementsLen >= shaderLayout->uniformElementsCapacity) {
         // Right now I am just planning on having the uniformElements array grow by 2 items at a time since it really shouldn't
         // have that many elements
@@ -255,7 +277,7 @@ int shader_uniform_layout_append_element(ShaderUniformLayout* shaderLayout, Unif
     return 0;
 }
 
-const char* shader_uniform_element_type_get_name(uint8_t elementType) {
+const char* shader_layout_element_type_get_name(uint8_t elementType) {
     switch (elementType) {
     case UNIFORM_SHADER_TYPE_INT:
         return "int";
@@ -291,12 +313,12 @@ const char* shader_uniform_element_type_get_name(uint8_t elementType) {
     }
 }
 
-void shader_uniform_elements_print(ShaderUniformLayout* shaderLayout) {
+void shader_layout_elements_print(ShaderLayout* shaderLayout) {
     for (int i = 0; i < shaderLayout->uniformElementsLen; i++) {
         SDL_Log(
             "name=%s type=%s offset=%u binding=%u len=%u\n",
             shaderLayout->uniformElements[i].name.str,
-            shader_uniform_element_type_get_name(shaderLayout->uniformElements[i].type),
+            shader_layout_element_type_get_name(shaderLayout->uniformElements[i].type),
             shaderLayout->uniformElements[i].offset,
             shaderLayout->uniformElements[i].bindingNum,
             shaderLayout->uniformElements[i].vecLen

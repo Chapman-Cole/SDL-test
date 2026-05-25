@@ -4,7 +4,7 @@
 #include <SDL3/SDL.h>
 #include "Strings.h"
 #include "Window.h"
-#include "ShaderUniformLayout.h"
+#include "ShaderLayout.h"
 #include "UniformBuffer.h"
 #include <stdatomic.h>
 
@@ -35,8 +35,8 @@ typedef struct GraphicsPipeline {
     SDL_GPUShader* shaders[2];
     
     // The uniform layout info for the vertex shader and fragment shader
-    ShaderUniformLayout vertexLayout;
-    ShaderUniformLayout fragmentLayout;
+    ShaderLayout vertexLayout;
+    ShaderLayout fragmentLayout;
 
     // Uniform data that is consistent across the entire frame, as in the same
     // for all objects using this particular graphics pipeline

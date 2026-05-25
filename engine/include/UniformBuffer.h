@@ -2,7 +2,7 @@
 #define UNIFORMBUFFER_H
 
 #include <stdint.h>
-#include "ShaderUniformLayout.h"
+#include "ShaderLayout.h"
 
 // Below are some useful defines for engine conventions
 #define UNIFORM_FRAGMENT_MATERIAL_SLOT 0
@@ -14,7 +14,7 @@
 #define UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT 2
 
 typedef struct UniformBuffer {
-    ShaderUniformLayout* layout;
+    ShaderLayout* layout;
     uint8_t* uniform;
     uint32_t uniformSize;
 } UniformBuffer;
@@ -34,7 +34,7 @@ typedef struct UBElementHandle {
 
 #define INVALID_UNIFORM_BUFFER_ELEMENT_HANDLE (UBElementHandle){.index = -1, .shaderType = UINT8_MAX}
 
-int uniform_buffer_create(UniformBuffer* uniform, ShaderUniformLayout* layout, uint8_t slot);
+int uniform_buffer_create(UniformBuffer* uniform, ShaderLayout* layout, uint8_t slot);
 
 int uniform_buffer_destroy(UniformBuffer* uniform);
 

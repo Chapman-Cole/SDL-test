@@ -7,6 +7,10 @@ void set_shader_format(unsigned int shader_format) {
     ShaderFormat = shader_format;
 }
 
+unsigned int get_shader_format(void) {
+    return ShaderFormat;
+}
+
 int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* spirvOut, string* entry_point, Uint32 shaderType) {
     // Create the shader compiler
     shaderc_compiler_t compiler = shaderc_compiler_initialize();
@@ -36,11 +40,11 @@ int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* sp
     return 0;
 }
 
-SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 sourceType, ShaderUniformLayout* shaderLayout) {
+SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 sourceType, ShaderLayout* shaderLayout) {
     SDL_GPUShaderCreateInfo vertexInfo = {0};
     vertexInfo.entrypoint = entry_point->str;
-    vertexInfo.format = ShaderFormat; // loading .spv shaders
-    vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;  // vertex shader
+    vertexInfo.format = ShaderFormat;
+    vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;
     vertexInfo.num_samplers = 0;
     vertexInfo.num_storage_buffers = 0;
     vertexInfo.num_storage_textures = 0;
@@ -101,11 +105,11 @@ SDL_GPUShader* create_vertex_shader(string* source, string* entry_point, Uint32 
     return vertexShader;
 }
 
-SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint32 sourceType, ShaderUniformLayout* shaderLayout) {
+SDL_GPUShader* create_fragment_shader(string* source, string* entry_point, Uint32 sourceType, ShaderLayout* shaderLayout) {
     SDL_GPUShaderCreateInfo fragmentInfo = {0};
     fragmentInfo.entrypoint = entry_point->str;
-    fragmentInfo.format = ShaderFormat; // loading .spv shaders
-    fragmentInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;  // fragment shader
+    fragmentInfo.format = ShaderFormat; 
+    fragmentInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT; 
     fragmentInfo.num_samplers = 0;
     fragmentInfo.num_storage_buffers = 0;
     fragmentInfo.num_storage_textures = 0;
