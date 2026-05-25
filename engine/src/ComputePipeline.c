@@ -69,5 +69,6 @@ int compute_pipeline_create(ComputePipeline* pipeline, string* computeShaderSour
 }
 
 int compute_pipeline_destroy(ComputePipeline* pipeline) {
+    SDL_ReleaseGPUComputePipeline(get_SDL_gpu_device(), pipeline->computePipeline);
     return 0;
 }

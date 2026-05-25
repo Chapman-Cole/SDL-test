@@ -12,5 +12,6 @@
 #include "Camera.h"
 #include "InstanceRenderObject.h"
 #include "ShaderLayout.h"
+#include "ComputePipeline.h"
 
 #endif

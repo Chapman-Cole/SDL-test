@@ -3,6 +3,43 @@
 
 #include <SDL3/SDL.h>
 
+typedef struct GPUBuffer {
+    SDL_GPUBuffer* gpu_buffer;
+    uint32_t gpu_buffer_size;
+
+    SDL_GPUTransferBuffer* transfer_buffer;
+} GPUBuffer;
+
+// buffer - Pointer to the gpu buffer to be created
+// size - The size of the gpu buffer
+// usage - Can be SDL_GPU_BUFFERUSAGE_VERTEX, SDL_GPU_BUFFERUSAGE_INDEX, 
+//         SDL_GPU_BUFFERUSAGE_INDIRECT, SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+//         SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ, or SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE
+int GPUBuffer_create(GPUBuffer* buffer, uint32_t size, uint8_t usage);
+
+// buffer - Pointer to the buffer to be uploaded with data
+// data - Pointer to the data to be uploaded to the buffer
+// size - The size, in bytes, of the data to be uploaded to the buffer
+// cacheTransferBuffer - If true, will not release the transfer buffer from meory, and if false
+//                       will keep transfer buffer in memory for repeated use
+// copyPass - The SDL copy pass object to be used for uploading data to the gpu
+int GPUBuffer_upload(GPUBuffer* buffer, void* data, uint32_t size, bool cacheTransferBuffer, SDL_GPUCopyPass* copyPass);
+
+// Transfers data from gpu to cpu. Must be called before using GPUBuffer_download_read()
+// buffer - Pointer to the specified gpu buffer
+// copyPass - The SDL copy pass object to be used for uploading data to the gpu
+int GPUBuffer_download_transfer(GPUBuffer* buffer, SDL_GPUCopyPass* copyPass);
+
+// Returns a pointer to the downloaded data from the gpu. Must be called after GPUBuffer_download_transfer().
+void* GPUBuffer_download_open_view(GPUBuffer* buffer);
+
+// Closes the opened view from the function GPUBuffer_download_open_view()
+// cacheTransferBuffer - If true, will not release the transfer buffer from meory, and if false
+//                       will keep transfer buffer in memory for repeated use
+int GPUBuffer_download_close_view(GPUBuffer* buffer, bool cacheTransferBuffer);
+
+int GPUBuffer_destroy(GPUBuffer* buffer);
+
 typedef struct TBStackElement {
     SDL_GPUTransferBuffer* transferBuffer;
     SDL_GPUBuffer* buffer;

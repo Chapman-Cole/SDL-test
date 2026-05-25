@@ -46,9 +46,6 @@ void meshobject_load_manual(Mesh* mesh, float* vertices, Uint32 vertexSize, Uint
 // vertex and index buffers. Assumes that the mesh object has already been initialized by the user
 void meshobject_load_objfile(Mesh* mesh, string path);
 
-// Binds the mesh data so it is prepped for rendering, and then renders it
-void meshobject_render(Mesh* mesh, SDL_GPURenderPass* renderPass);
-
 
 
 #endif

@@ -198,19 +198,3 @@ void meshobject_load_objfile(Mesh* mesh, string path) {
     SDL_free(triangles);
     string_free(&file);
 }
-
-void meshobject_render(Mesh* mesh, SDL_GPURenderPass* renderPass) {
-    // bind the vertex buffer
-    SDL_GPUBufferBinding bufferBindings[1];
-    bufferBindings[0].buffer = mesh->vertexBuffer;
-    bufferBindings[0].offset = 0;
-
-    SDL_GPUBufferBinding indexBinding;
-    indexBinding.buffer = mesh->indexBuffer;
-    indexBinding.offset = 0;
-
-    SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, 1);
-    SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
-
-    SDL_DrawGPUIndexedPrimitives(renderPass, mesh->numIndices, 1, 0, 0, 0);
-}
