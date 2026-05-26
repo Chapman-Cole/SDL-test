@@ -71,13 +71,13 @@ target_include_directories(${project_name} PRIVATE ../engine/include)
     
 target_link_libraries(${project_name} PRIVATE ${CMAKE_SOURCE_DIR}/build/lib/${library_name})
     
-include(../cmake/use_SDL3.cmake)
-include(../cmake/use_VulkanComponents.cmake)
-include(../cmake/use_cglm.cmake)
-
 if(UNIX)
     target_link_libraries(${project_name} PRIVATE m stdc++)
 endif()
+
+include(../cmake/use_SDL3.cmake)
+include(../cmake/use_VulkanComponents.cmake)
+include(../cmake/use_cglm.cmake)
 
 # -------------------------------------------------------------------------------------
 
@@ -127,7 +127,7 @@ include(../cmake/use_cglm.cmake)
 
 # -------------------------------------------------------------------------------------
 
-# >>>>>>>>>>>>>>>>>>>>>>> EXAMPLE 4 COMPILATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# >>>>>>>>>>>>>>>>>>>>>>> EXAMPLE 5 COMPILATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 set(project_name "example5")
 

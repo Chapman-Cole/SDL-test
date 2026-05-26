@@ -1,7 +1,7 @@
 #include "ShaderLayout.h"
 #include "SPIRV-Reflect/spirv_reflect.h"
 
-int shader_layout_init(ShaderLayout* shaderLayout) {
+int shader_layout_init(ShaderLayout* shaderLayout, string* entry_point) {
     shaderLayout->num_samplers = 0;
     shaderLayout->num_storage_buffers = 0;
     shaderLayout->num_storage_textures = 0;
@@ -13,6 +13,10 @@ int shader_layout_init(ShaderLayout* shaderLayout) {
     shaderLayout->num_readwrite_storage_textures = 0;
     shaderLayout->num_sampled_textures = 0;
 
+    shaderLayout->thread_count_x = 0;
+    shaderLayout->thread_count_y = 0;
+    shaderLayout->thread_count_z = 0;
+
     shaderLayout->uniformElements = NULL;
     shaderLayout->uniformElementsLen = 0;
     shaderLayout->uniformElementsCapacity = 0;
@@ -21,6 +25,9 @@ int shader_layout_init(ShaderLayout* shaderLayout) {
     shaderLayout->bufferSizes[1] = 0;
     shaderLayout->bufferSizes[2] = 0;
     shaderLayout->bufferSizes[3] = 0;
+
+    string_init(&shaderLayout->entry_point);
+    string_copy(&shaderLayout->entry_point, entry_point);
 
     return 0;
 }
@@ -36,9 +43,26 @@ int shader_layout_destroy(ShaderLayout* shaderLayout) {
     shaderLayout->num_storage_textures = 0;
     shaderLayout->num_uniform_buffers = 0;
 
+    shaderLayout->num_readonly_storage_buffers = 0;
+    shaderLayout->num_readwrite_storage_buffers = 0;
+    shaderLayout->num_readonly_storage_textures = 0;
+    shaderLayout->num_readwrite_storage_textures = 0;
+    shaderLayout->num_sampled_textures = 0;
+
+    shaderLayout->thread_count_x = 0;
+    shaderLayout->thread_count_y = 0;
+    shaderLayout->thread_count_z = 0;
+
     shaderLayout->uniformElements = NULL;
     shaderLayout->uniformElementsLen = 0;
     shaderLayout->uniformElementsCapacity = 0;
+
+    shaderLayout->bufferSizes[0] = 0;
+    shaderLayout->bufferSizes[1] = 0;
+    shaderLayout->bufferSizes[2] = 0;
+    shaderLayout->bufferSizes[3] = 0;
+
+    string_free(&shaderLayout->entry_point);
     
     return 0;
 }
@@ -166,6 +190,14 @@ int extract_shader_binding_info(string* spirv_file, ShaderLayout* shaderLayout) 
         SDL_Log("Failed to properly initialize SPIRV-Reflect module\n");
         SDL_Quit();
         exit(-1);
+    }
+
+    const SpvReflectEntryPoint* entry_point = spvReflectGetEntryPoint(&module, shaderLayout->entry_point.str);
+
+    if (entry_point != NULL && entry_point->shader_stage == SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT) {
+        shaderLayout->thread_count_x = entry_point->local_size.x;
+        shaderLayout->thread_count_y = entry_point->local_size.y;
+        shaderLayout->thread_count_z = entry_point->local_size.z;
     }
 
     // Counts the number of descriptor bindings

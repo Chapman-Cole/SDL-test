@@ -20,7 +20,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     }
 
     SDL_GPUDevice* device = NULL;
-    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
+    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, NULL);
     if (device == NULL) {
         SDL_Log("GPU device creation failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -55,9 +55,54 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     SDL_SubmitGPUCommandBuffer(cmd);
 
     cmd = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
-    SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmd, NULL, 0, NULL, 0);
+    SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(
+        cmd, 
+        NULL, 
+        0, 
+        &(SDL_GPUStorageBufferReadWriteBinding){
+            .buffer = downloadBuffer.gpu_buffer,
+            .cycle = false
+        }, 
+        1
+    );
+
+    SDL_BindGPUComputePipeline(computePass, computePipeline.computePipeline);
+    SDL_BindGPUComputeStorageBuffers(
+        computePass,
+        0,
+        (SDL_GPUBuffer*[]){
+            uploadBuffer.gpu_buffer,
+            downloadBuffer.gpu_buffer
+        },
+        2
+    );
+
+    SDL_DispatchGPUCompute(computePass, computePipeline.thread_count_x, computePipeline.thread_count_y, computePipeline.thread_count_z);
+
+    SDL_EndGPUComputePass(computePass);
+    SDL_SubmitGPUCommandBuffer(cmd);
+
+    cmd = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
+    copyPass = SDL_BeginGPUCopyPass(cmd);
+
+    GPUBuffer_download_transfer(&downloadBuffer, copyPass);
+
+    SDL_EndGPUCopyPass(copyPass);
+
+    SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmd);
+    SDL_WaitForGPUFences(get_SDL_gpu_device(), true, &fence, 1);
+
+    float* data = (float*)GPUBuffer_download_open_view(&downloadBuffer);
+
+    for (int i = 0; i < 100; i++) {
+        SDL_Log("%f", data[i]);
+    }
+
+    GPUBuffer_download_close_view(&downloadBuffer, false);
 
     compute_pipeline_destroy(&computePipeline);
+    GPUBuffer_destroy(&uploadBuffer);
+    GPUBuffer_destroy(&downloadBuffer);
 
     return SDL_APP_CONTINUE;
 }

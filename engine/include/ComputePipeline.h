@@ -7,6 +7,9 @@
 
 typedef struct ComputePipeline {
     SDL_GPUComputePipeline* computePipeline;
+    uint32_t thread_count_x;
+    uint32_t thread_count_y;
+    uint32_t thread_count_z;
 } ComputePipeline;
 
 // Creates the compute pipeline

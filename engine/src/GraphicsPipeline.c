@@ -33,9 +33,6 @@ int graphics_pipeline_init(GraphicsPipeline* pipeline) {
     pipeline->factory->colorTargetDescriptionsLen = 0;
     pipeline->factory->colorTargetDescriptions = NULL;
 
-    shader_layout_init(&pipeline->vertexLayout);
-    shader_layout_init(&pipeline->fragmentLayout);
-
     pipeline->id = atomic_fetch_add(&graphics_pipeline_idCount, 1);
 
     return 0;
@@ -174,6 +171,8 @@ int graphics_pipeline_append_color_target_description_default(GraphicsPipeline* 
 }
 
 int graphics_pipeline_attach_vertex_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType) {
+    shader_layout_init(&pipeline->vertexLayout, entry_point);
+
     pipeline->shaders[0] = create_vertex_shader(source, entry_point, sourceType, &pipeline->vertexLayout);
 
     uniform_buffer_create(&pipeline->vertexFrameData, &pipeline->vertexLayout, UNIFORM_VERTEX_USER_FRAME_DATA_SLOT);
@@ -182,6 +181,8 @@ int graphics_pipeline_attach_vertex_shader(GraphicsPipeline* pipeline, string* s
 }
 
 int graphics_pipeline_attach_fragment_shader(GraphicsPipeline* pipeline, string* source, string* entry_point, Uint32 sourceType) {
+    shader_layout_init(&pipeline->fragmentLayout, entry_point);
+    
     pipeline->shaders[1] = create_fragment_shader(source, entry_point, sourceType, &pipeline->fragmentLayout);
 
     uniform_buffer_create(&pipeline->fragmentFrameData, &pipeline->fragmentLayout, UNIFORM_FRAGMENT_USER_FRAME_DATA_SLOT);

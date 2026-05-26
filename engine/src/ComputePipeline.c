@@ -20,7 +20,7 @@ int compute_pipeline_create(ComputePipeline* pipeline, string* computeShaderSour
         break;
     
     case SHADER_COMPILATION_GLSL_STRING:
-        compile_glsl_to_spirv(&computeShaderSource, &STRING("Internal String Source"), &shaderSource, entryPoint, shaderc_glsl_compute_shader);
+        compile_glsl_to_spirv(computeShaderSource, &STRING("Internal String Source"), &shaderSource, entryPoint, shaderc_glsl_compute_shader);
         break;
 
     case SHADER_COMPILATION_SPIRV_PATH:
@@ -45,7 +45,7 @@ int compute_pipeline_create(ComputePipeline* pipeline, string* computeShaderSour
     pipelineInfo.format = get_shader_format();
 
     ShaderLayout shaderLayout;
-    shader_layout_init(&shaderLayout);
+    shader_layout_init(&shaderLayout, entryPoint);
     extract_shader_binding_info(&shaderSource, &shaderLayout);
 
     pipelineInfo.num_samplers = shaderLayout.num_samplers;
@@ -54,6 +54,13 @@ int compute_pipeline_create(ComputePipeline* pipeline, string* computeShaderSour
     pipelineInfo.num_readwrite_storage_textures = shaderLayout.num_readwrite_storage_textures;
     pipelineInfo.num_readwrite_storage_buffers = shaderLayout.num_readwrite_storage_buffers;
     pipelineInfo.num_uniform_buffers = shaderLayout.num_uniform_buffers;
+    pipelineInfo.threadcount_x = shaderLayout.thread_count_x;
+    pipelineInfo.threadcount_y = shaderLayout.thread_count_y;
+    pipelineInfo.threadcount_z = shaderLayout.thread_count_z;
+
+    pipeline->thread_count_x = shaderLayout.thread_count_x;
+    pipeline->thread_count_y = shaderLayout.thread_count_y;
+    pipeline->thread_count_z = shaderLayout.thread_count_z;
 
     pipeline->computePipeline = SDL_CreateGPUComputePipeline(get_SDL_gpu_device(), &pipelineInfo);
 

@@ -72,6 +72,9 @@ typedef struct ShaderLayout {
     uint32_t num_readonly_storage_textures;
     uint32_t num_readwrite_storage_textures;
     uint32_t num_sampled_textures;
+    uint32_t thread_count_x;
+    uint32_t thread_count_y;
+    uint32_t thread_count_z;
 
     // This stores the elements of the uniform buffer, in the order that they 
     // appear in the uniform buffer of the shader
@@ -82,10 +85,13 @@ typedef struct ShaderLayout {
     // SDL3 gpu api allows a maximum of 4 uniform buffers, and below will store the size in bytes
     // of all the different buffers (if there are that many)
     uint32_t bufferSizes[4];
+
+    string entry_point;
 } ShaderLayout;
 
 // Initializes the shader uniform layout passed in
-int shader_layout_init(ShaderLayout* shaderLayout);
+// entry_point - A string pointer containing the name of the entry point in the shader
+int shader_layout_init(ShaderLayout* shaderLayout, string* entry_point);
 
 // Properly destroys the initialized ShaderUniformLayout struct
 int shader_layout_destroy(ShaderLayout* shaderLayout);
