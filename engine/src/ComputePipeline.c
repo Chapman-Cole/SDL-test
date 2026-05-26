@@ -58,6 +58,11 @@ int compute_pipeline_create(ComputePipeline* pipeline, string* computeShaderSour
     pipelineInfo.threadcount_y = shaderLayout.thread_count_y;
     pipelineInfo.threadcount_z = shaderLayout.thread_count_z;
 
+    //SDL_Log("num_readonly_storage_textures: %d", shaderLayout.num_readonly_storage_textures);
+    //SDL_Log("num_readonly_storage_buffers: %d", shaderLayout.num_readonly_storage_buffers);
+    //SDL_Log("num_readwrite_storage_textures: %d", shaderLayout.num_readwrite_storage_textures);
+    //SDL_Log("num_readwrite_storage_buffers: %d", shaderLayout.num_readwrite_storage_buffers);
+
     pipeline->thread_count_x = shaderLayout.thread_count_x;
     pipeline->thread_count_y = shaderLayout.thread_count_y;
     pipeline->thread_count_z = shaderLayout.thread_count_z;
@@ -76,6 +81,12 @@ int compute_pipeline_create(ComputePipeline* pipeline, string* computeShaderSour
 }
 
 int compute_pipeline_destroy(ComputePipeline* pipeline) {
-    SDL_ReleaseGPUComputePipeline(get_SDL_gpu_device(), pipeline->computePipeline);
+    if (pipeline->computePipeline != NULL) {
+        SDL_ReleaseGPUComputePipeline(get_SDL_gpu_device(), pipeline->computePipeline);
+    }
+    pipeline->computePipeline = NULL;
+    pipeline->thread_count_x = 0;
+    pipeline->thread_count_y = 0;
+    pipeline->thread_count_z = 0;
     return 0;
 }

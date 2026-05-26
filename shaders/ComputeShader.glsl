@@ -1,12 +1,12 @@
-#version 450 core
+#version 450
 
 layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
-layout (std430, binding = 0) buffer InputBuffer {
+layout (std430, set = 0, binding = 0) readonly buffer InputBuffer {
     float data_in[];
 };
 
-layout (std430, binding = 1) buffer OutputBuffer {
+layout (std430, set = 1, binding = 0) buffer OutputBuffer {
     float data_out[];
 };
 

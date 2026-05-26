@@ -20,7 +20,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     }
 
     SDL_GPUDevice* device = NULL;
-    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, NULL);
+    device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
     if (device == NULL) {
         SDL_Log("GPU device creation failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -38,8 +38,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     GPUBuffer uploadBuffer;
     GPUBuffer downloadBuffer;
 
-    GPUBuffer_create(&uploadBuffer, 1024 * sizeof(float), SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE);
-    GPUBuffer_create(&downloadBuffer, 1024 * sizeof(float), SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ);
+    GPUBuffer_create(&uploadBuffer, 1024 * sizeof(float), SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ);
+    GPUBuffer_create(&downloadBuffer, 1024 * sizeof(float), SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE);
 
     float floatData[1024];
     for (int i = 0; i < 1024; i++) {
@@ -91,6 +91,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmd);
     SDL_WaitForGPUFences(get_SDL_gpu_device(), true, &fence, 1);
+    SDL_ReleaseGPUFence(get_SDL_gpu_device(), fence);
 
     float* data = (float*)GPUBuffer_download_open_view(&downloadBuffer);
 
@@ -116,7 +117,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
-    return SDL_APP_CONTINUE;
+    return SDL_APP_SUCCESS;
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
