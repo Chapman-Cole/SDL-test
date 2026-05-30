@@ -8,6 +8,8 @@
 #include "MeshObject.h"
 #include "GPUBuffers.h"
 
+#define MAX_INSTANCE_BUFFERS 5
+
 typedef struct InstanceRenderObject {
     GraphicsPipeline* pipeline;
     Material* material;
@@ -22,20 +24,16 @@ typedef struct InstanceRenderObject {
     UniformBuffer fragmentUniform;
 
     uint32_t instanceSlot;
-
-    void* instanceData;
-    uint32_t instanceStepSize;
     uint32_t numInstances;
 
-    SDL_GPUBuffer* instanceBuffer;
+    GPUBuffer* instanceBuffers[MAX_INSTANCE_BUFFERS];
+    uint32_t numInstanceBuffers;
 } InstanceRenderObject;
 
 int instance_render_object_create(InstanceRenderObject* object, GraphicsPipeline* pipeline, Material* material, uint32_t instanceSlot);
 
+int instance_render_object_add_instance_buffer(InstanceRenderObject* object, GPUBuffer* buffer);
+
 int instance_render_object_destroy(InstanceRenderObject* object);
-
-int instance_render_object_instantiate(InstanceRenderObject* object, uint32_t numInstances, uint32_t instanceStepSize);
-
-int instance_render_object_upload(InstanceRenderObject* object);
 
 #endif

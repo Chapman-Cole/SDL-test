@@ -324,14 +324,16 @@ int render_queue_submit(RenderQueue* queue) {
                 SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->fragmentUniform.uniform, queue->renderItems[i].object->fragmentUniform.uniformSize);
             }
 
-            SDL_GPUBufferBinding bufferBindings[2] = {
-                {.buffer = queue->renderItems[i].instanceObject->mesh.vertexBuffer, .offset = 0},
-                {.buffer = queue->renderItems[i].instanceObject->instanceBuffer, .offset = 0}
-            };
+            SDL_GPUBufferBinding bufferBindings[MAX_INSTANCE_BUFFERS + 1];
+            bufferBindings[0] = (SDL_GPUBufferBinding){.buffer = queue->renderItems[i].instanceObject->mesh.vertexBuffer, .offset = 0};
+            
+            for (int instanceBinding = 0; instanceBinding < queue->renderItems[i].instanceObject->numInstanceBuffers && instanceBinding < MAX_INSTANCE_BUFFERS; instanceBinding++) {
+                bufferBindings[instanceBinding + 1] = (SDL_GPUBufferBinding){.buffer = queue->renderItems[i].instanceObject->instanceBuffers[instanceBinding]->gpu_buffer, .offset = 0};
+            }
 
             SDL_GPUBufferBinding indexBinding = {.buffer = queue->renderItems[i].instanceObject->mesh.indexBuffer, .offset = 0};
 
-            SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, 2);
+            SDL_BindGPUVertexBuffers(renderPass, 0, bufferBindings, queue->renderItems[i].instanceObject->numInstanceBuffers + 1);
             SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
 
             SDL_DrawGPUIndexedPrimitives(renderPass, queue->renderItems[i].instanceObject->mesh.numIndices, queue->renderItems[i].instanceObject->numInstances, 0, 0, 0);

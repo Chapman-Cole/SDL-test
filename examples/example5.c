@@ -63,8 +63,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     graphics_pipeline_append_vertex_buffer_description(&graphicsPipeline, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
     graphics_pipeline_append_vertex_attribute(&graphicsPipeline, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
     graphics_pipeline_append_color_target_description_default(&graphicsPipeline, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), get_SDL_main_window()));
-    graphics_pipeline_attach_vertex_shader(&graphicsPipeline, &STRING("../shaders/example5.vert"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
-    graphics_pipeline_attach_fragment_shader(&graphicsPipeline, &STRING("../shaders/example5.frag"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_attach_vertex_shader(&graphicsPipeline, &STRING("../shaders/example5/example5.vert"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_attach_fragment_shader(&graphicsPipeline, &STRING("../shaders/example5/example5.frag"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
     graphics_pipeline_generate(&graphicsPipeline);
 
     material_create(&objMat, &graphicsPipeline);

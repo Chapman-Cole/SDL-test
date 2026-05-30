@@ -4,7 +4,11 @@ layout (location = 0) in vec3 a_position;
 
 layout (location = 1) in vec3 instancePos;
 
+layout (location = 2) in vec3 instanceVel;
+
 layout (location = 0) out vec3 v_pos;
+
+layout (location = 1) out vec3 vel;
 
 layout (std140, set = 1, binding = 0) uniform EngineObjectData {
     mat4 VP;
@@ -25,4 +29,6 @@ void main() {
     
     gl_Position = pos;
     v_pos = pos.xyz;
+
+    vel = instanceVel;
 }

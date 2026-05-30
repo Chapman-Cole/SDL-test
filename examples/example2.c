@@ -33,7 +33,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     set_SDL_gpu_device(device);
     set_SDL_main_window(window);
 
-    compute_pipeline_create(&computePipeline, &STRING("../shaders/ComputeShader.glsl"), SHADER_COMPILATION_GLSL_PATH, &STRING("main"));
+    compute_pipeline_create(&computePipeline, &STRING("../shaders/example2/ComputeShader.glsl"), SHADER_COMPILATION_GLSL_PATH, &STRING("main"));
 
     GPUBuffer uploadBuffer;
     GPUBuffer downloadBuffer;
@@ -77,7 +77,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         2
     );
 
-    SDL_DispatchGPUCompute(computePass, computePipeline.thread_count_x, computePipeline.thread_count_y, computePipeline.thread_count_z);
+    SDL_DispatchGPUCompute(computePass, (1024 + computePipeline.thread_count_x - 1) / computePipeline.thread_count_x, 1, 1);
 
     SDL_EndGPUComputePass(computePass);
     SDL_SubmitGPUCommandBuffer(cmd);
