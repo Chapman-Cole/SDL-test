@@ -15,6 +15,7 @@ typedef struct ComputeUniformData {
     float mouseX;
     float mouseY;
     uint32_t mode;
+    float rotation_dir;
     vec3 pad;
 } ComputeUniformData;
 
@@ -40,6 +41,8 @@ float mouseX, mouseY;
 float prevMouseX = 0.0f; 
 float prevMouseY = 0.0f;
 float mouseVelX, mouseVelY;
+
+float rotation_dir_toggle = 1.0f;
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -312,6 +315,12 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         computeMode = 1;
     } else if (state[SDL_SCANCODE_P]) {
         computeMode = 2;
+    } else if (state[SDL_SCANCODE_Q]) {
+        computeMode = 3;
+    }
+
+    if (state[SDL_SCANCODE_D]) {
+        rotation_dir_toggle *= -1.0f;
     }
 
     SDL_PushGPUComputeUniformData(
@@ -322,7 +331,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
             .elapsed = elapsed,
             .mouseX = mousePos[0],
             .mouseY = mousePos[1],
-            .mode = computeMode
+            .mode = computeMode,
+            .rotation_dir = rotation_dir_toggle
         },
         sizeof(ComputeUniformData)
     );

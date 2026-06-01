@@ -17,7 +17,8 @@ layout (std140, set = 2, binding = 0) uniform UniformBuffer {
     float elapsed;
     vec2 mousePos;
     uint mode;
-    vec3 pad;
+    float rotation_dir;
+    vec2 pad;
 };
 
 vec3 rotateZ(vec3 vector, float angle) {
@@ -52,7 +53,7 @@ void main() {
 
         float dotProductResult = abs(1.0 / length(vel) * dot(vel, direction));
 
-        vec3 direction2 = length(vel) * rotateZ(direction, PI / 2.0);
+        vec3 direction2 = length(vel) * rotateZ(direction, rotation_dir * PI / 2.0);
 
         direction2 = mix(vel, direction2, dotProductResult * elapsed);
         vel = direction2;
@@ -71,7 +72,30 @@ void main() {
         vel = clamp(vel + acceleration, -2.0, 2.0);
 
         pos += vel * elapsed;
-    } 
+    } else if (mode == 2) {
+        float dist = distance(vec3(mousePos, 0.0), pos);
+
+        vec3 direction = normalize(vec3(mousePos, 0.0) - pos);
+
+        vec3 acceleration = elapsed * sqrt(dist) * direction;
+
+        vel = clamp(vel + acceleration, -2.0, 2.0);
+
+        pos += vel * elapsed;
+    } else if (mode == 3) {
+        if (abs(pos.x) > 3.0) {
+            vel.x *= -1.0;
+        }
+
+        if (abs(pos.y) > 3.0) {
+            vel.y *= -1.0;
+        }
+
+        pos.x = clamp(pos.x, -3.0, 3.0);
+        pos.y = clamp(pos.y, -3.0, 3.0);
+
+        pos += vel * elapsed;
+    }
 
     positions[index] = pos[0];
     positions[index + 1] = pos[1];
