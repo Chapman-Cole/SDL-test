@@ -13,9 +13,6 @@
 #include "engine.h"
 
 // To compile with debug symbols on linux, do cmake -DCMAKE_BUILD_TYPE=Debug ..
-// For debug symbols on windows, cmake --build . --config Debug
-
-// gcc src/main.c src/GPUBuffers.c src/GraphicsPipeline.c src/MeshObject.c src/SDLDevice.c src/Shader.c src/Strings.c src/Window.c -Iinclude/ -lSDL3 -lm -lSPIRV-Tools-opt -lSPIRV-Tools -lglslang -lshaderc_combined -lm -fsanitize=address -o build/main
 
 Uint64 perfFrequency = 0;
 Uint64 perfCounterPrev = 0;
@@ -224,7 +221,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     render_queue_add(&rQueue, &background);
     render_queue_add(&rQueue, &foreground);
 
-    render_queue_submit(&rQueue);
+    render_queue_submit(&rQueue, NULL, 0, 0, false);
 
     return SDL_APP_CONTINUE;
 }

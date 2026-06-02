@@ -219,7 +219,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         render_queue_add(&rQueue, &particles[i].robj);
     }
 
-    render_queue_submit(&rQueue);
+    render_queue_submit(&rQueue, NULL, 0, 0, false);
 
     return SDL_APP_CONTINUE;
 }

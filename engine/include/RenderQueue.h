@@ -66,7 +66,10 @@ int render_queue_add(RenderQueue* queue, RenderObject* object);
 
 int render_queue_add_instanced(RenderQueue* queue, InstanceRenderObject* object);
 
-int render_queue_submit(RenderQueue* queue);
+// If either texture or color_target_info are NULL, then the swapchain will be rendered to directly
+// swapchain_index - The index in the color_target_info array that the swapchain color_target_info will be inserted into. If you
+// don't want to render to the swapchain, then this can be negative
+int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target_info, uint32_t num_color_targets, int swapchain_index, bool waitToFinish);
 
 int render_queue_sort_basic(RenderQueue* queue);
 

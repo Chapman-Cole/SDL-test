@@ -158,7 +158,7 @@ int render_queue_sort_radix(RenderQueue* queue) {
     return 0;
 }
 
-int render_queue_submit(RenderQueue* queue) {
+int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target_info, uint32_t num_color_targets, int swapchain_index, bool waitToFinish) {
     render_queue_sort_radix(queue);
 
     // Make sure all transfer buffers and data uploads are done before rendering
@@ -166,23 +166,47 @@ int render_queue_submit(RenderQueue* queue) {
 
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
 
-    SDL_GPUTexture* swapchainTexture;
-    Uint32 wdith, height;
-    SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, get_SDL_main_window(), &swapchainTexture, &wdith, &height);
-    if (swapchainTexture == NULL) {
-        // This frame will essentially get skipped
-        SDL_SubmitGPUCommandBuffer(commandBuffer);
-        render_queue_destroy(queue);
-        return RENDER_QUEUE_ERROR_SWAPCHAIN_FAILURE;
+    SDL_GPURenderPass* renderPass = NULL;
+
+    if (color_target_info == NULL) {
+        SDL_GPUTexture* swapchainTexture;
+        Uint32 wdith, height;
+        SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, get_SDL_main_window(), &swapchainTexture, &wdith, &height);
+        if (swapchainTexture == NULL) {
+            // This frame will essentially get skipped
+            SDL_SubmitGPUCommandBuffer(commandBuffer);
+            render_queue_destroy(queue);
+            return RENDER_QUEUE_ERROR_SWAPCHAIN_FAILURE;
+        }
+
+        SDL_GPUColorTargetInfo colorTargetInfo = {0};
+        colorTargetInfo.clear_color = queue->backgroundColor;
+        colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
+        colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
+        colorTargetInfo.texture = swapchainTexture;
+
+        renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, NULL);
+    } else {
+        if (swapchain_index >= 0 && swapchain_index < num_color_targets) {
+            SDL_GPUTexture* swapchainTexture;
+            Uint32 wdith, height;
+            SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, get_SDL_main_window(), &swapchainTexture, &wdith, &height);
+            if (swapchainTexture == NULL) {
+                // This frame will essentially get skipped
+                SDL_SubmitGPUCommandBuffer(commandBuffer);
+                render_queue_destroy(queue);
+                return RENDER_QUEUE_ERROR_SWAPCHAIN_FAILURE;
+            }
+
+            SDL_zero(color_target_info[swapchain_index]);
+            color_target_info[swapchain_index].clear_color = queue->backgroundColor;
+            color_target_info[swapchain_index].load_op = SDL_GPU_LOADOP_CLEAR;
+            color_target_info[swapchain_index].store_op = SDL_GPU_STOREOP_STORE;
+            color_target_info[swapchain_index].texture = swapchainTexture;
+        }
+
+        renderPass = SDL_BeginGPURenderPass(commandBuffer, color_target_info, num_color_targets, NULL);
     }
-
-    SDL_GPUColorTargetInfo colorTargetInfo = {0};
-    colorTargetInfo.clear_color = queue->backgroundColor;
-    colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
-    colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
-    colorTargetInfo.texture = swapchainTexture;
-
-    SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, NULL);
 
     // It's important to keep in mind that glm functions operate as right multiplication, meaning the ordering
     // becomes the opposite of what you would initially expect
@@ -261,6 +285,17 @@ int render_queue_submit(RenderQueue* queue) {
 
         // Handle switching materials
         if (queue->renderItems[i].material->uniform.uniform != NULL && (curr_material != queue->renderItems[i].material->id || i == 0)) {
+            if (queue->renderItems[i].material->numTextureSamplerPairs > 0) {
+                SDL_GPUTextureSamplerBinding texSamplBindings[MAX_TEXTURE_SAMPLER_PAIRS];
+                for (int j = 0; j < queue->renderItems[i].material->numTextureSamplerPairs; j++) {
+                    texSamplBindings[j] = (SDL_GPUTextureSamplerBinding){
+                        .sampler = queue->renderItems[i].material->textureSamplerPairs[j].sampler,
+                        .texture = queue->renderItems[i].material->textureSamplerPairs[j].texture
+                    };
+                }
+
+                SDL_BindGPUFragmentSamplers(renderPass, 0, texSamplBindings, queue->renderItems[i].material->numTextureSamplerPairs);
+            }
             SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_MATERIAL_SLOT, queue->renderItems[i].material->uniform.uniform, queue->renderItems[i].material->uniform.uniformSize);
             curr_material = queue->renderItems[i].material->id;
         }
@@ -341,7 +376,14 @@ int render_queue_submit(RenderQueue* queue) {
     }
 
     SDL_EndGPURenderPass(renderPass);
-    SDL_SubmitGPUCommandBuffer(commandBuffer);
+    
+    if (waitToFinish == false) {
+        SDL_SubmitGPUCommandBuffer(commandBuffer);
+    } else {
+        SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
+        SDL_WaitForGPUFences(get_SDL_gpu_device(), true, &fence, 1);
+        SDL_ReleaseGPUFence(get_SDL_gpu_device(), fence);
+    }
 
     // Make sure the contents of the render queue are freed up to make way for the next frame
     render_queue_destroy(queue);

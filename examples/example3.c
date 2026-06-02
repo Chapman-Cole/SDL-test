@@ -1,13 +1,13 @@
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
 #include "engine.h"
 
 GraphicsPipeline graphicsPipeline;
 Material objMat;
 RenderObject testObj;
 RenderObject secondObj;
-
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -103,7 +103,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     render_queue_add(&rQueue, &testObj);
     render_queue_add(&rQueue, &secondObj);
 
-    render_queue_submit(&rQueue);
+    render_queue_submit(&rQueue, NULL, 0, 0, false);
 
     return SDL_APP_CONTINUE;
 }

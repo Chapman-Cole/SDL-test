@@ -218,74 +218,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     vec2 mousePos;
     camera2D_screen_to_world(&cam, (float)windowWidth / (float)windowHeight, (vec2){(mouseX / (float)windowWidth) * 2.0f - 1.0f, -((mouseY / (float)windowHeight) * 2.0f - 1.0f)}, mousePos);
 
-    /*
-    if (state[SDL_SCANCODE_O]) {
-        for (int i = 0; i < NUM_PARTICLES; i++) {
-            float distance = glm_vec2_distance(mousePos, (vec2){particles.pos[i][0], particles.pos[i][1]});
-
-            vec3 direction;
-            glm_vec3_sub((vec3){mousePos[0], mousePos[1], 0.0f}, particles.pos[i], direction);
-            glm_vec3_normalize(direction);
-
-            vec3 tempVec, acceleration;
-
-            glm_vec3_scale(direction, elapsed * glm_clamp(1.0f / distance, 0.1f, 1000.0f), acceleration);
-            glm_vec3_add(particles.velocity[i], acceleration, tempVec);
-            glm_vec3_clamp(tempVec, -10.0f, 10.0f);
-            glm_vec3_copy(tempVec, particles.velocity[i]);
-
-            vec3 newPos;
-            glm_vec3_scale(particles.velocity[i], elapsed, tempVec);
-            glm_vec3_add(particles.pos[i], tempVec, newPos);
-
-            glm_vec3_copy(newPos, particles.pos[i]);
-        }
-    } else if (state[SDL_SCANCODE_P]) {
-        for (int i = 0; i < NUM_PARTICLES; i++) {
-            float distance = glm_vec2_distance(mousePos, (vec2){particles.pos[i][0], particles.pos[i][1]});
-            float multiplier = 0.1f * SDL_sinf(4.0f * distance - 3.0f * appTime);
-
-            vec3 direction, direction2;
-            glm_vec3_sub((vec3){mousePos[0], mousePos[1], 0.0f}, particles.pos[i], direction);
-            glm_vec3_normalize(direction);
-            glm_vec3_scale(direction, multiplier * elapsed, direction2);
-
-            vec3 newPos;
-            glm_vec3_add(particles.pos[i], direction2, newPos);
-
-            glm_vec3_copy(newPos, particles.pos[i]);
-        }
-    } else {
-        for (int i = 0; i < NUM_PARTICLES; i++) {
-            float distance = glm_vec2_distance(mousePos, (vec2){particles.pos[i][0], particles.pos[i][1]});
-            float dropoff = 0.05f / glm_clamp(distance * distance, 0.1f, 1000.0f);
-
-            vec3 direction, direction2;
-            glm_vec3_sub((vec3){mousePos[0], mousePos[1], 0.0f}, particles.pos[i], direction);
-            glm_vec3_normalize(direction);
-            glm_vec3_copy(direction, direction2);
-
-            vec3 tempVec, acceleration;
-
-            float dotProductResult = SDL_fabs((1.0f / glm_vec3_norm(particles.velocity[i])) * glm_vec3_dot(particles.velocity[i], direction));
-            glm_vec3_rotate(direction2, SDL_PI_F / 2.0f, (vec3){0.0f, 0.0f, 1.0f});
-            glm_vec3_scale(direction2, glm_vec3_norm(particles.velocity[i]), tempVec);
-            glm_vec3_lerp(particles.velocity[i], tempVec, dotProductResult * elapsed, direction2);
-            glm_vec3_copy(direction2, particles.velocity[i]);
-
-            glm_vec3_scale(direction, elapsed * dropoff, acceleration);
-            glm_vec3_add(particles.velocity[i], acceleration, tempVec);
-            glm_vec3_copy(tempVec, particles.velocity[i]);
-
-            vec3 newPos;
-            glm_vec3_scale(particles.velocity[i], elapsed, tempVec);
-            glm_vec3_add(particles.pos[i], tempVec, newPos);
-
-            glm_vec3_copy(newPos, particles.pos[i]);
-        }
-    }
-    */
-
     SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
     
     SDL_GPUComputePass* compPass = SDL_BeginGPUComputePass(
@@ -347,7 +279,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     render_queue_add_instanced(&rQueue, &particles.robj);
 
-    render_queue_submit(&rQueue);
+    render_queue_submit(&rQueue, NULL, 0, 0, false);
 
     return SDL_APP_CONTINUE;
 }

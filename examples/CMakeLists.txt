@@ -78,6 +78,7 @@ endif()
 include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
+include(../cmake/use_SDL3_image.cmake)
 
 # -------------------------------------------------------------------------------------
 
@@ -101,6 +102,7 @@ endif()
 include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
+include(../cmake/use_SDL3_image.cmake)
 
 # -------------------------------------------------------------------------------------
 
