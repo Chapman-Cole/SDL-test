@@ -8,7 +8,7 @@ GraphicsPipeline graphicsPipeline;
 Material objMat;
 RenderObject basicObject;
 
-SDL_GPUTexture* texture;
+GPUTexture texture;
 SDL_GPUSampler* sampler;
 
 Camera2D cam = CAMERA2D_DEFAULT;
@@ -55,13 +55,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     render_object_create(&basicObject, &graphicsPipeline, &objMat);
     meshobject_load_objfile(&basicObject.mesh, STRING("../objects/Quad.obj"));
 
-    SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(get_SDL_gpu_device());
-    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(cmd);
-
-    texture = IMG_LoadGPUTexture(get_SDL_gpu_device(), copyPass, "../img/JediOrder.jpg", NULL, NULL);
-
-    SDL_EndGPUCopyPass(copyPass);
-    SDL_SubmitGPUCommandBuffer(cmd);
+    GPUTexture_init(&texture);
+    GPUTexture_load(&texture, &STRING("../img/JediOrder.jpg"), true);
 
     sampler = SDL_CreateGPUSampler(
         get_SDL_gpu_device(),
@@ -83,7 +78,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         }
     );
 
-    material_append_texture_sampler_pair(&objMat, texture, sampler);
+    material_append_texture_sampler_pair(&objMat, texture.texture, sampler);
 
     return SDL_APP_CONTINUE;
 }
@@ -117,7 +112,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
-    SDL_ReleaseGPUTexture(get_SDL_gpu_device(), texture);
+    GPUTexture_destroy(&texture);
     SDL_ReleaseGPUSampler(get_SDL_gpu_device(), sampler);
     render_object_destroy(&basicObject);
     material_destroy(&objMat);

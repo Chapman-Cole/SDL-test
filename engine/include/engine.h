@@ -13,5 +13,6 @@
 #include "InstanceRenderObject.h"
 #include "ShaderLayout.h"
 #include "ComputePipeline.h"
+#include "GPUTextures.h"
 
 #endif

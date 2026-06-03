@@ -15,6 +15,9 @@ int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* sp
     // Create the shader compiler
     shaderc_compiler_t compiler = shaderc_compiler_initialize();
 
+    shaderc_compile_options_t compiler_options = shaderc_compile_options_initialize();
+    shaderc_compile_options_set_optimization_level(compiler_options, shaderc_optimization_level_performance);
+
     // Compile the glsl to SPIR-V
     shaderc_compilation_result_t result;
     result = shaderc_compile_into_spv(
@@ -35,6 +38,7 @@ int compile_glsl_to_spirv(string* glslSource, string* glslSourceName, string* sp
     
     // Cleanup
     shaderc_result_release(result);
+    shaderc_compile_options_release(compiler_options);
     shaderc_compiler_release(compiler);
 
     return 0;
