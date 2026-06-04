@@ -9,6 +9,7 @@
 #include "RenderObject.h"
 #include "Camera.h"
 #include "InstanceRenderObject.h"
+#include "TextRenderObject.h"
  
 typedef struct RenderItemSortKey {
     uint64_t high; // top 32 bits represent the graphics pipeline id, and the bottom 32 bits represent the material id
@@ -17,7 +18,8 @@ typedef struct RenderItemSortKey {
 
 typedef enum {
     RENDER_ITEM_OBJECT,
-    RENDER_ITEM_INSTANCED_OBJECT
+    RENDER_ITEM_INSTANCED_OBJECT,
+    RENDER_ITEM_TEXT_OBJECT
 } RenderItemObjectType;
 
 typedef struct RenderItem {
@@ -26,6 +28,7 @@ typedef struct RenderItem {
     union {
         RenderObject* object;
         InstanceRenderObject* instanceObject;
+        TextRenderObject* textObject;
     };
     // References options from the enum RenderItemObjectType
     uint8_t objectType;
@@ -65,6 +68,8 @@ int render_queue_destroy(RenderQueue* queue);
 int render_queue_add(RenderQueue* queue, RenderObject* object);
 
 int render_queue_add_instanced(RenderQueue* queue, InstanceRenderObject* object);
+
+int render_queue_add_text(RenderQueue* queue, TextRenderObject* object);
 
 // If either texture or color_target_info are NULL, then the swapchain will be rendered to directly
 // swapchain_index - The index in the color_target_info array that the swapchain color_target_info will be inserted into. If you

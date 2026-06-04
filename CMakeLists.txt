@@ -6,6 +6,7 @@ include(cmake/find_SDL3.cmake)
 include(cmake/find_VulkanComponents.cmake)
 include(cmake/find_cglm.cmake)
 include(cmake/find_SDL3_image.cmake)
+include(cmake/find_SDL3_ttf.cmake)
 
 # This is helpful for vscode projects
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -12,7 +12,7 @@ project(engine LANGUAGES C CXX)
 # >>>>>>>>>>>>>>>>>>>>>>> OBJECT LIB COMPILATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 # Compile the files once to an object library so the static and dynamic link versions can be built later on
-add_library(EngineObjectLib OBJECT ../external/SPIRV-Reflect/spirv_reflect.c src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c src/MeshObject.c src/Window.c  src/ShaderLayout.c src/Material.c src/UniformBuffer.c src/RenderObject.c src/RenderQueue.c src/InstanceRenderObject.c src/Camera.c src/ComputePipeline.c src/GPUTextures.c)
+add_library(EngineObjectLib OBJECT ../external/SPIRV-Reflect/spirv_reflect.c src/GPUBuffers.c src/Strings.c src/Shader.c src/SDLDevice.c src/GraphicsPipeline.c src/MeshObject.c src/Window.c  src/ShaderLayout.c src/Material.c src/UniformBuffer.c src/RenderObject.c src/RenderQueue.c src/InstanceRenderObject.c src/Camera.c src/ComputePipeline.c src/GPUTextures.c src/TextRenderObject.c)
 
 # MSVC can have issues when trying to compile using stdatomics
 if(MSVC)
@@ -36,6 +36,7 @@ include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
 include(../cmake/use_SDL3_image.cmake)
+include(../cmake/use_SDL3_ttf.cmake)
 
 # Shared object libraries (dynamic link librareis) require position independent code
 set_target_properties(EngineObjectLib PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -57,6 +58,7 @@ include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
 include(../cmake/use_SDL3_image.cmake)
+include(../cmake/use_SDL3_ttf.cmake)
 
 # ------------------------------------------------------------------------------
 
@@ -79,6 +81,7 @@ include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
 include(../cmake/use_SDL3_image.cmake)
+include(../cmake/use_SDL3_ttf.cmake)
 
 if(UNIX)
     target_link_libraries(${project_name} PRIVATE

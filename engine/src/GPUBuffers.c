@@ -110,7 +110,10 @@ int GPUBuffer_destroy(GPUBuffer* buffer) {
         buffer->transfer_buffer = NULL;
     }
 
-    SDL_ReleaseGPUBuffer(get_SDL_gpu_device(), buffer->gpu_buffer);
+    if (buffer->gpu_buffer != NULL) {
+        SDL_ReleaseGPUBuffer(get_SDL_gpu_device(), buffer->gpu_buffer);
+    }
+    
     buffer->gpu_buffer = NULL;
     buffer->gpu_buffer_size = 0;
 

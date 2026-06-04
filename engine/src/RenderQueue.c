@@ -91,6 +91,35 @@ int render_queue_add_instanced(RenderQueue* queue, InstanceRenderObject* object)
     return 0;
 }
 
+int render_queue_add_text(RenderQueue* queue, TextRenderObject* object) {
+    if (queue->len + 1 >= queue->capacity) {
+        queue->capacity *= 2;
+        queue->renderItems = (RenderItem*)SDL_realloc(queue->renderItems, queue->capacity * sizeof(RenderItem));
+        if (queue->renderItems == NULL) {
+            SDL_Log("Failed to allocate memory for render_queue.");
+            SDL_Quit();
+            exit(-1);
+        }
+    }
+
+    RenderItemSortKey key;
+    key.high = (uint64_t)object->pipeline->id << 32;
+    // text objects don't reference a material, so just assign the high part of the key the maximum for an unsigned 64 bit integer
+    key.high += UINT64_MAX;
+
+    queue->renderItems[queue->len] = (RenderItem){
+        .material = NULL,
+        .pipeline = object->pipeline,
+        .textObject = object,
+        .objectType = RENDER_ITEM_TEXT_OBJECT,
+        .sortKey = key
+    };
+
+    queue->len++;
+
+    return 0;
+}
+
 int render_queue_sort_basic(RenderQueue* queue) {
     // Basic insertion algorithm for now. Could be interesting to look into something more efficient like merge sort
     // later on, but for now I think insertion sort should be plenty goods
@@ -112,6 +141,11 @@ int render_queue_sort_basic(RenderQueue* queue) {
 
 // Uses radix sorting for better speed at large numbers
 int render_queue_sort_radix(RenderQueue* queue) {
+    if (queue->len == 0) {
+        // Nothing to sort
+        return 0;
+    }
+
     RenderItem* itemSrc = queue->renderItems;
     RenderItem* itemDest = (RenderItem*)SDL_malloc(queue->len * sizeof(RenderItem));
     if (itemDest == NULL) {
@@ -265,8 +299,14 @@ int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target
     }
 
     // Start the main loop for binding and draw calls
-    uint32_t curr_graphics_pipeline = queue->renderItems[0].pipeline->id;
-    uint32_t curr_material = queue->renderItems[0].material->id;
+    uint32_t curr_graphics_pipeline; 
+    uint32_t curr_material; 
+
+    if (queue->len > 0) {
+        curr_graphics_pipeline = queue->renderItems[0].pipeline->id;
+        curr_material = queue->renderItems[0].material->id;
+    }
+
     for (int i = 0; i < queue->len; i++) {
         // Handle switching graphics pipelines
         if (curr_graphics_pipeline != queue->renderItems[i].pipeline->id || i == 0) {
@@ -301,7 +341,6 @@ int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target
         }
 
         // Push engine object data
-
         if (queue->renderItems[i].objectType == RENDER_ITEM_OBJECT) {
             mat4 objectTransform;
             glm_mat4_identity(objectTransform);
@@ -372,6 +411,20 @@ int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target
             SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
 
             SDL_DrawGPUIndexedPrimitives(renderPass, queue->renderItems[i].instanceObject->mesh.numIndices, queue->renderItems[i].instanceObject->numInstances, 0, 0, 0);
+        } else if (queue->renderItems[i].objectType == RENDER_ITEM_TEXT_OBJECT) {
+            mat4 objectTransform;
+            glm_mat4_identity(objectTransform);
+            mat4 tempRotation;
+            glm_quat_rotate(objectTransform, queue->renderItems[i].instanceObject->quaternion, tempRotation);
+            glm_scale(tempRotation, queue->renderItems[i].instanceObject->scale);
+
+            mat4 objectData[2];
+            glm_mat4_copy(VP, objectData[0]);
+            glm_mat4_copy(tempRotation, objectData[1]);
+
+            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, objectData, sizeof(objectData));
+
+            
         }
     }
 
