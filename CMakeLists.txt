@@ -44,5 +44,6 @@ if(ASAN_ON)
     endif()
 endif()
 
+add_subdirectory(FontLoader)
 add_subdirectory(engine)
 add_subdirectory(examples)

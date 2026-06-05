@@ -2,7 +2,8 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 #include "engine.h"
-#include <SDL3_ttf/SDL_ttf.h>
+#include "FontParser.h"
+#include "ParsingHelpers.h"
 
 Camera2D cam = CAMERA2D_DEFAULT;
 
@@ -25,6 +26,25 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         SDL_Log("GPU device creation failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
+
+    size_t font_file_size;
+    uint8_t* font_file = (uint8_t*)SDL_LoadFile("../fonts/AdwaitaMono-Bold.ttf", &font_file_size);
+
+    OTFTableDirectory* tbdir = FontParser_acquire_table_directory(font_file);
+    
+    OTFTableHead* tbhead = FontParser_acquire_table_head(font_file, tbdir);
+
+    OTFTableHHEA* tbhhea = FontParser_acquire_table_hhea(font_file, tbdir);
+
+    FontParser_print_table_directory(tbdir);
+    FontParser_print_table_head(tbhead);
+    FontParser_print_table_hhea(tbhhea);
+
+    FontParser_release_table_hhea(&tbhhea);
+    FontParser_release_table_head(&tbhead);
+    FontParser_release_table_directory(&tbdir);
+
+    SDL_free(font_file);
 
     SDL_ClaimWindowForGPUDevice(device, window);
 
