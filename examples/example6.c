@@ -28,21 +28,32 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     }
 
     size_t font_file_size;
-    uint8_t* font_file = (uint8_t*)SDL_LoadFile("../fonts/AdwaitaMono-Bold.ttf", &font_file_size);
+    uint8_t* font_file = (uint8_t*)SDL_LoadFile("../fonts/LiberationMono-Regular.ttf", &font_file_size);
+
+    FILE* fptr = fopen("log.txt", "w");
 
     OTFTableDirectory* tbdir = FontParser_acquire_table_directory(font_file);
-    
     OTFTableHead* tbhead = FontParser_acquire_table_head(font_file, tbdir);
-
     OTFTableHHEA* tbhhea = FontParser_acquire_table_hhea(font_file, tbdir);
+    OTFTableMAXP* tbmaxp = FontParser_acquire_table_maxp(font_file, tbdir);
+    OTFTableHMTX* tbhmtx = FontParser_acquire_table_hmtx(font_file, tbdir, tbhhea, tbmaxp);
+    OTFTableCMAP* tbcmap = FontParser_acquire_table_cmap(font_file, tbdir);
 
-    FontParser_print_table_directory(tbdir);
-    FontParser_print_table_head(tbhead);
-    FontParser_print_table_hhea(tbhhea);
+    FontParser_print_table_directory(tbdir, fptr);
+    FontParser_print_table_head(tbhead, fptr);
+    FontParser_print_table_hhea(tbhhea, fptr);
+    FontParser_print_table_maxp(tbmaxp, fptr);
+    FontParser_print_table_hmtx(tbhmtx, tbhhea, tbmaxp, fptr);
+    FontParser_print_table_cmap(tbcmap, fptr);
 
+    FontParser_release_table_cmap(&tbcmap);
+    FontParser_release_table_hmtx(&tbhmtx);
+    FontParser_release_table_maxp(&tbmaxp);
     FontParser_release_table_hhea(&tbhhea);
     FontParser_release_table_head(&tbhead);
     FontParser_release_table_directory(&tbdir);
+
+    fclose(fptr);
 
     SDL_free(font_file);
 

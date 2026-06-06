@@ -1,97 +1,15 @@
 #include "FontParser.h"
+// This must come after FontParser.h
+#include "FontTypesPrivate.h"
 #include "ParsingHelpers.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 
 // Many of the comments and typedef names come from the microsoft documentation: https://learn.microsoft.com/en-us/typography/opentype/spec/otff
 
 #define OTF_EPOCH_OFFSET 2082844800LL
-
-typedef uint8_t uint8;
-typedef int8_t int8;
-typedef uint16_t uint16;
-typedef int16_t int16;
-typedef uint8_t uint24[3];
-typedef uint32_t uint32;
-typedef int32_t int32;
-typedef int32_t Fixed;
-typedef int16_t FWORD;
-typedef uint16_t UFWORD;
-typedef int16_t F2DOT14;
-typedef int64_t LONGDATETIME;
-typedef uint8_t Tag[4];
-typedef uint8_t Offset8;
-typedef uint16_t Offset16;
-typedef uint8_t Offset24[3];
-typedef uint32_t Offset32;
-typedef uint32_t Version16Dot16;
-
-struct TTCHeader {
-    Tag ttcTag; // 4 byte id string
-    uint16 majorVersion;
-    uint16 minorVersion; 
-    uint32 numFonts;
-    Offset32* tableDirectoryOffsets; // The length of the array would be numFonts
-    uint32 dsigTag; // Indicates whether there is DSIG table (0x44534947 for 'DSIG' and null if there is no signature)
-    uint32 dsigLength; // Length in bytes of the DSIG table (null if doesn't exist)
-    uint32 dsigOffset; // Offsets (in bytes) to the DSIG table from the start of the file (null if no signature)
-};
-
-typedef struct TableRecord {
-    Tag tableTag; // table identifier
-    uint32 checksum;
-    Offset32 offset; // offset from the beginning of the file
-    uint32 length; // the length of the table
-} TableRecord;
-
-struct OTFTableDirectory {
-    uint32 sfntVersion; // 0x00010000 or 0x4F54544F
-    uint16 numTables;
-    uint16 searchRange; // Maximum power of 2 less than or equal to numTables, times 16 ((2**floor(log2(numTables))) * 16
-    uint16 entrySelector; // Log2 of the maximum power of 2 less than or equal to numTables (log2(searchRange/16), which is equal to floor(log2(numTables))).
-    uint16 rangeShift; // numTables times 16, minus searchRange ((numTables * 16) - searchRange).
-    TableRecord* tableRecords; // Table records array—one for each top-level table in the font. Has a length equal to numTables
-};
-
-struct OTFTableHead {
-    uint16 majorVersion;
-    uint16 minorVersion;
-    Fixed fontRevision;
-    uint32 checksumAdjustment;
-    uint32 magicNumber; // 0x5F0F3CF5
-    uint16 flags;
-    uint16 unitsPerEm;
-    LONGDATETIME created;
-    LONGDATETIME modified;
-    int16 xMin;
-    int16 yMin;
-    int16 xMax;
-    int16 yMax;
-    uint16 macStyle;
-    uint16 lowestRecPPEM; // Smallest readable size in pixels.
-    int16 fontDirectionHint; // Depcrecated (should be set to 2)
-    int16 indexToLocFormat;
-    int16 glyphDataFormat;
-};
-
-struct OTFTableHHEA {
-    uint16 majorVersion;
-    uint16 minorVersion;
-    FWORD ascender;
-    FWORD descender;
-    FWORD lineGap;
-    UFWORD advanceWidthMax;
-    FWORD minLeftSideBearing;
-    FWORD minRightSideBearing;
-    FWORD xMaxExtent;
-    int16 caretSlopeRise;
-    int16 caretSlopeRun;
-    int16 caretOffset;
-    int16 reserved[4];
-    int16 metricDataFormat;
-    uint16 numberOfHMetrics;
-};
 
 OTFTableDirectory* FontParser_acquire_table_directory(uint8_t* ttf_file) {
     OTFTableDirectory* tableDirectory = (OTFTableDirectory*)malloc(sizeof(OTFTableDirectory));
@@ -139,8 +57,9 @@ void FontParser_release_table_directory(OTFTableDirectory** tableDir) {
     *tableDir = NULL;
 }
 
-void FontParser_print_table_directory(OTFTableDirectory* tableDir) {
-    printf(
+void FontParser_print_table_directory(OTFTableDirectory* tableDir, FILE* output) {
+    fprintf(
+        output,
         "Table Directory: {\n"
         "   sfntVersion: 0x%X\n"
         "   numTables: %u\n"
@@ -158,13 +77,14 @@ void FontParser_print_table_directory(OTFTableDirectory* tableDir) {
     for (int i = 0; i < tableDir->numTables; i++) {
         TableRecord tr = tableDir->tableRecords[i];
 
-        printf(
-            "   {\n"
-            "       tableTag: %.*s\n"
-            "       checksum: %u\n"
-            "       offset: %u\n"
-            "       length: %u\n"
-            "   }\n\n",
+        fprintf(
+            output,
+            "       {\n"
+            "           tableTag: %.*s\n"
+            "           checksum: %u\n"
+            "           offset: %u\n"
+            "           length: %u\n"
+            "       }\n",
             4,
             tr.tableTag,
             tr.checksum,
@@ -173,7 +93,7 @@ void FontParser_print_table_directory(OTFTableDirectory* tableDir) {
         );
     }
 
-    printf("   }\n}\n");
+    fprintf(output, "   }\n}\n");
 }
 
 TableRecord* get_table_record(OTFTableDirectory* tableDir, Tag tableTag) {
@@ -230,7 +150,7 @@ void FontParser_release_table_head(OTFTableHead** tableHead) {
     *tableHead = NULL;
 }
 
-void FontParser_print_table_head(OTFTableHead* tableHead) {
+void FontParser_print_table_head(OTFTableHead* tableHead, FILE* output) {
     char created_time[24];
     char modified_time[24];
 
@@ -252,7 +172,8 @@ void FontParser_print_table_head(OTFTableHead* tableHead) {
     #endif
     strftime(modified_time, sizeof(modified_time), "%m/%d/%y", &GMTTime);
 
-    printf(
+    fprintf(
+        output,
         "Table Head: {\n"
         "   majorVersion: %u\n"
         "   minorVersion: %u\n"
@@ -329,8 +250,9 @@ void FontParser_release_table_hhea(OTFTableHHEA** tableHHEA) {
     *tableHHEA = NULL;
 }
 
-void FontParser_print_table_hhea(OTFTableHHEA* tableHHEA) {
-    printf(
+void FontParser_print_table_hhea(OTFTableHHEA* tableHHEA, FILE* output) {
+    fprintf(
+        output,
         "Table HHEA: {\n"
         "   majorVersion: %u\n"
         "   minorVersion: %u\n"
@@ -362,4 +284,217 @@ void FontParser_print_table_hhea(OTFTableHHEA* tableHHEA) {
         tableHHEA->metricDataFormat,
         tableHHEA->numberOfHMetrics
     );
+}
+
+OTFTableMAXP* FontParser_acquire_table_maxp(uint8_t* ttf_file, OTFTableDirectory* tableDir) {
+    TableRecord* tableRec = get_table_record(tableDir, (Tag){'m', 'a', 'x', 'p'});
+
+    uint32 maxp_offset = tableRec->offset;
+    uint32 maxp_length = tableRec->length;
+
+    OTFTableMAXP* table_maxp = (OTFTableMAXP*)malloc(sizeof(OTFTableMAXP));
+    memset(table_maxp, 0, sizeof(OTFTableMAXP));
+
+    uint8_t* maxp_ptr = ttf_file + maxp_offset;
+
+    table_maxp->version = advance_32b(&maxp_ptr);
+    table_maxp->numGlyphs = advance_16b(&maxp_ptr);
+
+    if (table_maxp->version == 0x00005000) {
+        return table_maxp;
+    }
+
+    table_maxp->maxPoints = advance_16b(&maxp_ptr);
+    table_maxp->maxContours = advance_16b(&maxp_ptr);
+    table_maxp->maxCompositePoints = advance_16b(&maxp_ptr);
+    table_maxp->maxCompositeContours = advance_16b(&maxp_ptr);
+    table_maxp->maxZones = advance_16b(&maxp_ptr);
+    table_maxp->maxTwilightPoints = advance_16b(&maxp_ptr);
+    table_maxp->maxStorage = advance_16b(&maxp_ptr);
+    table_maxp->maxFunctionDefs = advance_16b(&maxp_ptr);
+    table_maxp->maxInstructionDefs = advance_16b(&maxp_ptr);
+    table_maxp->maxStackElements = advance_16b(&maxp_ptr);
+    table_maxp->maxSizeOfInstructions = advance_16b(&maxp_ptr);
+    table_maxp->maxComponentElements = advance_16b(&maxp_ptr);
+    table_maxp->maxComponentDepth = advance_16b(&maxp_ptr);
+
+    return table_maxp;
+}
+
+void FontParser_release_table_maxp(OTFTableMAXP** tableMAXP) {
+    free(*tableMAXP);
+    *tableMAXP = NULL;
+}
+
+void FontParser_print_table_maxp(OTFTableMAXP* tableMAXP, FILE* output) {
+    if (tableMAXP->version == 0x00005000) {
+        fprintf(
+            output,
+            "Table MAXP {\n"
+            "   version: %X\n"
+            "   numGlyphs: %u\n"
+            "}\n",
+            tableMAXP->version,
+            tableMAXP->numGlyphs
+        );
+    } else {
+        fprintf(
+            output,
+            "Table MAXP {\n"
+            "   version: 0x%X\n"
+            "   numGlyphs: %u\n"
+            "   maxPoints: %u\n"
+            "   maxContours: %u\n"
+            "   maxCompositePoints: %u\n"
+            "   maxCompositeContours: %u\n"
+            "   maxZones: %u\n"
+            "   maxTwilightPoints: %u\n"
+            "   maxStorage: %u\n"
+            "   maxFunctionDefs: %u\n"
+            "   maxInstructionDefs: %u\n"
+            "   maxStackElements: %u\n"
+            "   maxSizeOfInstructions: %u\n"
+            "   maxComponentElements: %u\n"
+            "   maxComponentDepth: %u\n"
+            "}\n",
+            tableMAXP->version,
+            tableMAXP->numGlyphs,
+            tableMAXP->maxPoints,
+            tableMAXP->maxContours,
+            tableMAXP->maxCompositePoints,
+            tableMAXP->maxCompositeContours,
+            tableMAXP->maxZones,
+            tableMAXP->maxTwilightPoints,
+            tableMAXP->maxStorage,
+            tableMAXP->maxFunctionDefs,
+            tableMAXP->maxInstructionDefs,
+            tableMAXP->maxStackElements,
+            tableMAXP->maxSizeOfInstructions,
+            tableMAXP->maxComponentElements,
+            tableMAXP->maxComponentDepth
+        );
+    }
+}
+
+OTFTableHMTX* FontParser_acquire_table_hmtx(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableHHEA* tableHHEA, OTFTableMAXP* tableMAXP) {
+    TableRecord* tableRec = get_table_record(tableDir, (Tag){'h', 'm', 't', 'x'});
+
+    uint32 hmtx_offset = tableRec->offset;
+    uint32 hmtx_length = tableRec->length;
+
+    OTFTableHMTX* tableHMTX = (OTFTableHMTX*)malloc(sizeof(OTFTableHMTX));
+
+    uint8_t* hmtx_ptr = ttf_file + hmtx_offset;
+
+    tableHMTX->hMetrics = (LongHorMetric*)malloc(tableHHEA->numberOfHMetrics * sizeof(LongHorMetric));
+    tableHMTX->leftSideBearings = (FWORD*)malloc((tableMAXP->numGlyphs - tableHHEA->numberOfHMetrics) * sizeof(FWORD));
+
+    for (uint32 i = 0; i < tableHHEA->numberOfHMetrics; i++) {
+        tableHMTX->hMetrics[i].advanceWidth = advance_16b(&hmtx_ptr);
+        tableHMTX->hMetrics[i].lsb = advance_16b(&hmtx_ptr);
+    }
+
+    for (uint32 i = 0; i < tableMAXP->numGlyphs - tableHHEA->numberOfHMetrics; i++) {
+        tableHMTX->leftSideBearings[i] = advance_16b(&hmtx_ptr);
+    }
+
+    return tableHMTX;
+}
+
+void FontParser_release_table_hmtx(OTFTableHMTX** tableHMTX) {
+    free((*tableHMTX)->hMetrics);
+    free((*tableHMTX)->leftSideBearings);
+    free(*tableHMTX);
+    *tableHMTX = NULL;
+}
+
+void FontParser_print_table_hmtx(OTFTableHMTX* tableHMTX, OTFTableHHEA* tableHHEA, OTFTableMAXP* tableMAXP, FILE* output) {
+    fprintf(output, "Table HMTX {\n");
+
+    fprintf(output, "    hMetrics {\n");
+
+    for (uint32 i = 0; i < tableHHEA->numberOfHMetrics; i++) {
+        fprintf(
+            output,
+            "       {\n"
+            "           advanceWidth: %u\n"
+            "           lsb: %d\n"
+            "       }\n",
+            tableHMTX->hMetrics[i].advanceWidth,
+            tableHMTX->hMetrics[i].lsb
+        );
+    }
+
+    fprintf(output, "    }\n");
+
+    fprintf(output, "    leftSideBearings: {\n");
+
+    for (uint32 i = 0; i < tableMAXP->numGlyphs - tableHHEA->numberOfHMetrics; i++) {
+        if (i % 4 == 0) {
+            fprintf(output, "\n      ");
+        }
+
+        fprintf(output, "%d, ", tableHMTX->leftSideBearings[i]);
+    }
+
+    fprintf(output, "    }\n");
+
+    fprintf(output, "}\n");
+}
+
+OTFTableCMAP* FontParser_acquire_table_cmap(uint8_t* ttf_file, OTFTableDirectory* tableDir) {
+    TableRecord* tableRec = get_table_record(tableDir, (Tag){'c', 'm', 'a', 'p'});
+
+    uint32 cmap_offset = tableRec->offset;
+    uint32 cmap_length = tableRec->length;
+
+    OTFTableCMAP* table_cmap = (OTFTableCMAP*)malloc(sizeof(OTFTableCMAP));
+
+    uint8_t* cmap_ptr = ttf_file + cmap_offset;
+
+    table_cmap->version = advance_16b(&cmap_ptr);
+    table_cmap->numTables = advance_16b(&cmap_ptr);
+    table_cmap->encodingRecords = (EncodingRecord*)malloc(table_cmap->numTables * sizeof(EncodingRecord));
+
+    for (uint32 i = 0; i < table_cmap->numTables; i++) {
+        table_cmap->encodingRecords[i].platformID = advance_16b(&cmap_ptr);
+        table_cmap->encodingRecords[i].encodingID = advance_16b(&cmap_ptr);
+        table_cmap->encodingRecords[i].subtableOffset = advance_32b(&cmap_ptr);
+    }
+
+    return table_cmap;
+}
+
+void FontParser_release_table_cmap(OTFTableCMAP** tableCMAP) {
+    free((*tableCMAP)->encodingRecords);
+    free(*tableCMAP);
+    *tableCMAP = NULL;
+}
+
+void FontParser_print_table_cmap(OTFTableCMAP* tableCMAP, FILE* output) {
+    fprintf(
+        output,
+        "Table CMAP {\n"
+        "   version: %u\n"
+        "   numTables: %u\n"
+        "   encodingRecords {\n",
+        tableCMAP->version,
+        tableCMAP->numTables
+    );
+
+    for (uint32 i = 0; i < tableCMAP->numTables; i++) {
+        fprintf(
+            output,
+            "       {\n"
+            "           platformID: %u\n"
+            "           encodingID: %u\n"
+            "           subtableOffset: %u\n"
+            "       }\n",
+            tableCMAP->encodingRecords[i].platformID,
+            tableCMAP->encodingRecords[i].encodingID,
+            tableCMAP->encodingRecords[i].subtableOffset
+        );
+    }
+
+    fprintf(output, "   }\n}\n");
 }
