@@ -49,7 +49,7 @@ struct OTFTableDirectory {
     TableRecord* tableRecords; // Table records array—one for each top-level table in the font. Has a length equal to numTables
 };
 
-struct OTFTableHead {
+struct OTFTableHEAD {
     uint16 majorVersion;
     uint16 minorVersion;
     Fixed fontRevision;
@@ -127,6 +127,76 @@ struct OTFTableCMAP {
     uint16 version;
     uint16 numTables;
     EncodingRecord* encodingRecords;
+};
+
+struct OTFTableLOCA {
+    union {
+        Offset16* offsets16;
+        Offset32* offsets32;
+    };
+};
+
+typedef struct GlyphHeader {
+    int16 numberOfContours; // greater than or equal to zero --> simple glyph, negative --> composite glyph
+    int16 xMin;
+    int16 yMin;
+    int16 xMax;
+    int16 yMax;
+} GlyphHeader;
+
+#define SG_ON_CURVE_POINT 0x01
+#define SG_X_SHORT_VECTOR 0x02
+#define SG_Y_SHORT_VECTOR 0x04
+#define SG_REPEAT_FLAG 0x08
+#define SG_X_IS_SAME_OR_POSITIVE_X_SHORT_VECTOR 0x10
+#define SG_Y_IS_SAME_OR_POSITIVE_Y_SHORT_VECTOR 0x20
+#define SG_OVERLAP_SIMPLE 0x40
+
+typedef struct SimpleGlyph {
+    uint16* endPtsOfContours; // size equal to numberOfContours
+    uint16 instructionLength;
+    uint8* instructions; // has size equal to instructionLength
+    // the flags, xCoordinates, and yCoordinates arrays all have the same size
+    // each point has an associated xCoordinate, yCoordinate, and flag
+    uint8* flags; 
+    int16* xCoordinates;
+    int16* yCoordinates;
+    uint32 numPoints; // This is not included in font files, but I have added it for ease of use
+} SimpleGlyph;
+
+typedef struct ComponentGlyphRecord {
+    uint16 flags;
+    uint16 glyphIndex;
+    uint16 argument1;
+    uint16 argument2;
+
+    // Optional transform data
+    F2DOT14 scale;
+    F2DOT14 xscale;
+    F2DOT14 yscale;
+    F2DOT14 scale01;
+    F2DOT14 scale10;
+} ComponentGlyphRecord;
+
+typedef struct CompositeGlyph {
+    ComponentGlyphRecord* componentGlyphs;
+    uint32 componentGlyphsLength;
+
+    // Insturctions, if any exist, would come immediately after the last component glyph record
+    uint16 numInstructions;
+    uint8* instructions;
+} CompositeGlyph;
+
+typedef struct Glyph {
+    GlyphHeader header;
+    union {
+        SimpleGlyph sg;
+        CompositeGlyph cg;
+    };
+} Glyph;
+
+struct OTFTableGLYF {
+    Glyph* glyphs;
 };
 
 

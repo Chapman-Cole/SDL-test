@@ -33,11 +33,12 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     FILE* fptr = fopen("log.txt", "w");
 
     OTFTableDirectory* tbdir = FontParser_acquire_table_directory(font_file);
-    OTFTableHead* tbhead = FontParser_acquire_table_head(font_file, tbdir);
+    OTFTableHEAD* tbhead = FontParser_acquire_table_head(font_file, tbdir);
     OTFTableHHEA* tbhhea = FontParser_acquire_table_hhea(font_file, tbdir);
     OTFTableMAXP* tbmaxp = FontParser_acquire_table_maxp(font_file, tbdir);
     OTFTableHMTX* tbhmtx = FontParser_acquire_table_hmtx(font_file, tbdir, tbhhea, tbmaxp);
     OTFTableCMAP* tbcmap = FontParser_acquire_table_cmap(font_file, tbdir);
+    OTFTableLOCA* tbloca = FontParser_acquire_table_loca(font_file, tbdir, tbhead, tbmaxp);
 
     FontParser_print_table_directory(tbdir, fptr);
     FontParser_print_table_head(tbhead, fptr);
@@ -45,7 +46,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     FontParser_print_table_maxp(tbmaxp, fptr);
     FontParser_print_table_hmtx(tbhmtx, tbhhea, tbmaxp, fptr);
     FontParser_print_table_cmap(tbcmap, fptr);
+    FontParser_print_table_loca(tbloca, tbhead, tbmaxp, fptr);
 
+    FontParser_release_table_loca(&tbloca);
     FontParser_release_table_cmap(&tbcmap);
     FontParser_release_table_hmtx(&tbhmtx);
     FontParser_release_table_maxp(&tbmaxp);

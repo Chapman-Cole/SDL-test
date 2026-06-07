@@ -10,7 +10,7 @@ typedef struct TTCHeader TTCHeader;
 // For .ttf and .otf files, this table comes at the very start of the file
 typedef struct OTFTableDirectory OTFTableDirectory;
 
-typedef struct OTFTableHead OTFTableHead;
+typedef struct OTFTableHEAD OTFTableHEAD;
 
 typedef struct OTFTableHHEA OTFTableHHEA;
 
@@ -20,6 +20,11 @@ typedef struct OTFTableHMTX OTFTableHMTX;
 
 typedef struct OTFTableCMAP OTFTableCMAP;
 
+typedef struct OTFTableLOCA OTFTableLOCA;
+
+typedef struct OTFTableGLYF OTFTableGLYF;
+
+
 // Note: I say ttf_file a lot as a parameter, but it could actually be either a .ttf or a .otf file
 
 OTFTableDirectory* FontParser_acquire_table_directory(uint8_t* ttf_file);
@@ -28,11 +33,11 @@ void FontParser_release_table_directory(OTFTableDirectory** tableDir);
 
 void FontParser_print_table_directory(OTFTableDirectory* tableDir, FILE* output);
 
-OTFTableHead* FontParser_acquire_table_head(uint8_t* ttf_file, OTFTableDirectory* tableDir);
+OTFTableHEAD* FontParser_acquire_table_head(uint8_t* ttf_file, OTFTableDirectory* tableDir);
 
-void FontParser_release_table_head(OTFTableHead** tableHead);
+void FontParser_release_table_head(OTFTableHEAD** tableHead);
 
-void FontParser_print_table_head(OTFTableHead* tableHead, FILE* output);
+void FontParser_print_table_head(OTFTableHEAD* tableHead, FILE* output);
 
 OTFTableHHEA* FontParser_acquire_table_hhea(uint8_t* ttf_file, OTFTableDirectory* tableDir);
 
@@ -58,6 +63,16 @@ void FontParser_release_table_cmap(OTFTableCMAP** tableCMAP);
 
 void FontParser_print_table_cmap(OTFTableCMAP* tableCMAP, FILE* output);
 
+OTFTableLOCA* FontParser_acquire_table_loca(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableHEAD* tableHEAD, OTFTableMAXP* tableMAXP);
 
+void FontParser_release_table_loca(OTFTableLOCA** tableLOCA);
+
+void FontParser_print_table_loca(OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEAD, OTFTableMAXP* tableMAXP, FILE* output);
+
+OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableMAXP* tableMAXP);
+
+void FontParser_release_table_glyf(OTFTableGLYF** tableGLYF);
+
+void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, OTFTableMAXP* tableMAXP, FILE* output);
 
 #endif

@@ -113,13 +113,13 @@ TableRecord* get_table_record(OTFTableDirectory* tableDir, Tag tableTag) {
     return NULL;
 }
 
-OTFTableHead* FontParser_acquire_table_head(uint8_t* ttf_file, OTFTableDirectory* tableDir) {
+OTFTableHEAD* FontParser_acquire_table_head(uint8_t* ttf_file, OTFTableDirectory* tableDir) {
     TableRecord* tableRec = get_table_record(tableDir, (Tag){'h', 'e', 'a', 'd'});
 
     uint32 head_offset = tableRec->offset;
     uint32 head_length = tableRec->length;
 
-    OTFTableHead* tableHead = (OTFTableHead*)malloc(sizeof(OTFTableHead));
+    OTFTableHEAD* tableHead = (OTFTableHEAD*)malloc(sizeof(OTFTableHEAD));
 
     uint8_t* header = ttf_file + head_offset;
 
@@ -145,12 +145,12 @@ OTFTableHead* FontParser_acquire_table_head(uint8_t* ttf_file, OTFTableDirectory
     return tableHead;
 }
 
-void FontParser_release_table_head(OTFTableHead** tableHead) {
+void FontParser_release_table_head(OTFTableHEAD** tableHead) {
     free(*tableHead);
     *tableHead = NULL;
 }
 
-void FontParser_print_table_head(OTFTableHead* tableHead, FILE* output) {
+void FontParser_print_table_head(OTFTableHEAD* tableHead, FILE* output) {
     char created_time[24];
     char modified_time[24];
 
@@ -497,4 +497,138 @@ void FontParser_print_table_cmap(OTFTableCMAP* tableCMAP, FILE* output) {
     }
 
     fprintf(output, "   }\n}\n");
+}
+
+OTFTableLOCA* FontParser_acquire_table_loca(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableHEAD* tableHEAD, OTFTableMAXP* tableMAXP) {
+    TableRecord* tableRec = get_table_record(tableDir, (Tag){'l', 'o', 'c', 'a'});
+
+    uint32 loca_offset = tableRec->offset;
+    uint32 loca_length = tableRec->length;
+
+    OTFTableLOCA* table_loca = (OTFTableLOCA*)malloc(sizeof(OTFTableLOCA));
+
+    uint8_t* loca_ptr = ttf_file + loca_offset;
+
+    // 0 means use short offsets and 1 means use long offsets
+    if (tableHEAD->indexToLocFormat == 0) {
+        table_loca->offsets16 = (Offset16*)malloc((tableMAXP->numGlyphs + 1) * sizeof(Offset16));
+
+        for (uint32 i = 0; i < tableMAXP->numGlyphs + 1; i++) {
+            table_loca->offsets16[i] = advance_16b(&loca_ptr);
+        }
+    } else if (tableHEAD->indexToLocFormat == 1) {
+        table_loca->offsets32 = (Offset32*)malloc((tableMAXP->numGlyphs + 1) * sizeof(Offset32));
+
+        for (uint32 i = 0; i < tableMAXP->numGlyphs + 1; i++) {
+            table_loca->offsets32[i] = advance_32b(&loca_ptr);
+        }
+    } else {
+        free(table_loca);
+        return NULL;
+    }
+
+    return table_loca;
+}
+
+void FontParser_release_table_loca(OTFTableLOCA** tableLOCA) {
+    // Because the struct only contains an anonymous union of two pointers
+    // either the offsets16 or offsets32 can be freed since they would both point to the same 
+    // memory
+    free((*tableLOCA)->offsets16);
+    (*tableLOCA)->offsets16 = NULL;
+}
+
+void FontParser_print_table_loca(OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEAD, OTFTableMAXP* tableMAXP, FILE* output) {
+    fprintf(
+        output,
+        "Table LOCA: {\n"
+        "   offsets {\n"
+    );
+
+    // 0 means short offsets and 1 means long offsets
+    if (tableHEAD->indexToLocFormat == 0) {
+        for (uint32 i = 0; i < tableMAXP->numGlyphs + 1; i++) {
+            fprintf(output, "       %u\n", tableLOCA->offsets16[i]);
+        }
+    } else if (tableHEAD->indexToLocFormat == 1) {
+        for (uint32 i = 0; i < tableMAXP->numGlyphs + 1; i++) {
+            fprintf(output, "       %u\n", tableLOCA->offsets32[i]);
+        }
+    }
+
+    fprintf(
+        output,
+        "   }\n}\n"
+    );
+}
+
+OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableMAXP* tableMAXP) {
+    TableRecord* tableRec = get_table_record(tableDir, (Tag){'g', 'l', 'y', 'f'});
+
+    uint32 glyf_offset = tableRec->offset;
+    uint32 glyf_length = tableRec->length;
+
+    OTFTableGLYF* table_glyf = (OTFTableGLYF*)malloc(sizeof(OTFTableGLYF));
+
+    table_glyf->glyphs = (Glyph*)malloc(tableMAXP->numGlyphs * sizeof(Glyph));
+
+    uint8_t* glyf_ptr = ttf_file + glyf_offset;
+
+    for (uint32 i = 0; i < tableMAXP->numGlyphs; i++) {
+        table_glyf->glyphs[i].header.numberOfContours = advance_16b(&glyf_ptr);
+        table_glyf->glyphs[i].header.xMin = advance_16b(&glyf_ptr);
+        table_glyf->glyphs[i].header.yMin = advance_16b(&glyf_ptr);
+        table_glyf->glyphs[i].header.xMax = advance_16b(&glyf_ptr);
+        table_glyf->glyphs[i].header.yMax = advance_16b(&glyf_ptr);
+
+        if (table_glyf->glyphs[i].header.numberOfContours >= 0) {
+            // Handle the case for a simple glyph
+            table_glyf->glyphs[i].sg.endPtsOfContours = (uint16*)malloc(table_glyf->glyphs[i].header.numberOfContours * sizeof(uint16));
+            memcpy(table_glyf->glyphs[i].sg.endPtsOfContours, glyf_ptr, table_glyf->glyphs[i].header.numberOfContours * sizeof(uint16));
+            glyf_ptr += table_glyf->glyphs[i].header.numberOfContours * sizeof(uint16);
+
+            table_glyf->glyphs[i].sg.instructionLength = advance_16b(&glyf_ptr);
+            if (table_glyf->glyphs[i].sg.instructionLength == 0) {
+                table_glyf->glyphs[i].sg.instructions = NULL;
+            } else {
+                table_glyf->glyphs[i].sg.instructions = (uint8*)malloc(table_glyf->glyphs[i].sg.instructionLength * sizeof(uint8));
+                memcpy(table_glyf->glyphs[i].sg.instructions, glyf_ptr, table_glyf->glyphs[i].sg.instructionLength * sizeof(uint8));
+            }
+
+            // The last element of the endPtsOfContours array gives the highest valued index of any ending point in a contour. Since this is an
+            // index, you add 1 to this value to get the number of points
+            uint32 numPoints = table_glyf->glyphs[i].sg.endPtsOfContours[table_glyf->glyphs[i].header.numberOfContours - 1] + 1;
+            table_glyf->glyphs[i].sg.numPoints = numPoints;
+
+            table_glyf->glyphs[i].sg.flags = (uint8*)malloc(numPoints * sizeof(uint8));
+
+            uint32 pointCounter = 0;
+            while (pointCounter < numPoints) {
+                table_glyf->glyphs[i].sg.flags[pointCounter] = advance_8b(&glyf_ptr);
+
+                if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_REPEAT_FLAG) {
+                    // The number of repeats is the byte that directly comes after the current flag with this bit set
+                    uint8 numRepeats = advance_8b(&glyf_ptr);
+
+                    // The +1 in the memory offset comes from the fact that the number of repeats is the amount that byte repeats in addition
+                    // to the initial occurence of that byte
+                    memset(table_glyf->glyphs[i].sg.flags + pointCounter + 1, table_glyf->glyphs[i].sg.flags[pointCounter], numRepeats);
+
+                    pointCounter += numRepeats;
+                }
+
+                pointCounter++;
+            }
+        } else {
+            // Handle the case for a composite glyph
+        }
+    }
+}
+
+void FontParser_release_table_glyf(OTFTableGLYF** tableGLYF) {
+
+}
+
+void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, OTFTableMAXP* tableMAXP, FILE* output) {
+
 }
