@@ -535,7 +535,8 @@ void FontParser_release_table_loca(OTFTableLOCA** tableLOCA) {
     // either the offsets16 or offsets32 can be freed since they would both point to the same 
     // memory
     free((*tableLOCA)->offsets16);
-    (*tableLOCA)->offsets16 = NULL;
+    free(*tableLOCA);
+    *tableLOCA = NULL;
 }
 
 void FontParser_print_table_loca(OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEAD, OTFTableMAXP* tableMAXP, FILE* output) {
@@ -545,21 +546,39 @@ void FontParser_print_table_loca(OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEA
         "   offsets {\n"
     );
 
+    const uint32 numbers_per_line = 10;
+
     // 0 means short offsets and 1 means long offsets
     if (tableHEAD->indexToLocFormat == 0) {
         for (uint32 i = 0; i < tableMAXP->numGlyphs + 1; i++) {
-            fprintf(output, "       %u\n", tableLOCA->offsets16[i]);
+            if (i != 0 && i % numbers_per_line == 0) {
+                fprintf(output, "\n");
+            }
+
+            fprintf(output, "       %7u, ", tableLOCA->offsets16[i]);
         }
     } else if (tableHEAD->indexToLocFormat == 1) {
         for (uint32 i = 0; i < tableMAXP->numGlyphs + 1; i++) {
-            fprintf(output, "       %u\n", tableLOCA->offsets32[i]);
+            if (i != 0 && i % numbers_per_line == 0) {
+                fprintf(output, "\n");
+            }
+
+            fprintf(output, "       %7u, ", tableLOCA->offsets32[i]);
         }
     }
 
-    fprintf(
-        output,
-        "   }\n}\n"
-    );
+    if (tableMAXP->numGlyphs % numbers_per_line == 0) {
+        fprintf(
+            output,
+            "   }\n}\n"
+        );
+    } else {
+        fprintf(
+            output,
+            "\n"
+            "   }\n}\n"
+        );
+    }
 }
 
 OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableMAXP* tableMAXP, OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEAD) {
@@ -578,11 +597,21 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
     for (uint32 i = 0; i < tableMAXP->numGlyphs; i++) {
         uint32 glyphSize = 0;
         if (tableHEAD->indexToLocFormat == 0) {
-            // short offsets
-            glyphSize = tableLOCA->offsets16[i + 1] - tableLOCA->offsets16[i];
+            // short offsets (these store the offset divided by two)
+            glyphSize = 2 * tableLOCA->offsets16[i + 1] - 2 * tableLOCA->offsets16[i];
+
+            // Due to glyfs being aligned to 2 byte boundaries, there could be extra bytes at
+            // the end of the glyf that don't need to be parsed. This means it is easier to manually set
+            // the glyf ptr according to the loca offsets each iteration
+            glyf_ptr = (uint8*)(ttf_file + (uint64_t)glyf_offset + (uint64_t)tableLOCA->offsets16[i] * 2);
         } else if (tableHEAD->indexToLocFormat == 1) {
             // long offsets
             glyphSize = tableLOCA->offsets32[i + 1] - tableLOCA->offsets32[i];
+
+            // Due to glyfs being aligned to 2 byte boundaries, there could be extra bytes at
+            // the end of the glyf that don't need to be parsed. This means it is easier to manually set
+            // the glyf ptr according to the loca offsets each iteration
+            glyf_ptr = (uint8*)(ttf_file + (uint64_t)glyf_offset + (uint64_t)tableLOCA->offsets32[i]);
         }
 
         // This is allowed for some reason, and it basically just means to skip over these glyphs. 
@@ -784,8 +813,6 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
                 }
             }
         }
-
-        printf("Size: %u | Bytes Read: %u\n", glyphSize, glyf_ptr - (ttf_file + glyf_offset));
     }
 
     return table_glyf;
@@ -815,6 +842,7 @@ void FontParser_release_table_glyf(OTFTableGLYF** tableGLYF) {
 }
 
 void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, FILE* output) {
+    const uint32 numbers_per_line = 10;
     fprintf(
         output,
         "Table GLYF: {\n"
@@ -830,54 +858,77 @@ void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, FILE* output) {
             );
 
             for (uint32 j = 0; j < tableGLYF->glyphs[i].header.numberOfContours; j++) {
-                fprintf(output, "       %u\n", tableGLYF->glyphs[i].sg.endPtsOfContours[j]);
+                if (j != 0 && j % numbers_per_line == 0) {
+                    fprintf(output, "\n");
+                }
+
+                fprintf(output, "           %4u, ", tableGLYF->glyphs[i].sg.endPtsOfContours[j]);
             }
 
+            fprintf(output, "\n       }\n");
+
             fprintf(
-                output, 
-                "       }\n"
+                output,
                 "       instructionLength: %u\n"
                 "       instructions {\n",
                 tableGLYF->glyphs[i].sg.instructionLength
             );
 
             for (uint32 j = 0; j < tableGLYF->glyphs[i].sg.instructionLength; j++) {
-                fprintf(output, "       %u\n", tableGLYF->glyphs[i].sg.instructions[j]);
+                if (j != 0 && j % numbers_per_line == 0) {
+                    fprintf(output, "\n");
+                }
+
+                fprintf(output, "           %4u, ", tableGLYF->glyphs[i].sg.instructions[j]);
             }
+
+            fprintf(output, "\n       }\n");
+
 
             fprintf(
                 output,
-                "       }\n"
                 "       flags {\n"
             );
 
             for (uint32 j = 0; j < tableGLYF->glyphs[i].sg.numPoints; j++) {
-                fprintf(output, "       %X\n", tableGLYF->glyphs[i].sg.flags[j]);
+                if (j != 0 && j % numbers_per_line == 0) {
+                    fprintf(output, "\n");
+                }
+
+                fprintf(output, "           %4s0x%X, ", "", tableGLYF->glyphs[i].sg.flags[j]);
             }
 
             fprintf(
                 output,
-                "       }\n"
+                "\n       }\n"
                 "       xCoordinates {\n"
             );
 
             for (uint32 j = 0; j < tableGLYF->glyphs[i].sg.numPoints; j++) {
-                fprintf(output, "       %d", tableGLYF->glyphs[i].sg.xCoordinates[j]);
+                if (j != 0 && j % numbers_per_line == 0) {
+                    fprintf(output, "\n");
+                }
+
+                fprintf(output, "           %6d, ", tableGLYF->glyphs[i].sg.xCoordinates[j]);
             }
 
             fprintf(
                 output,
-                "       }\n"
+                "\n       }\n"
                 "       yCoordinates {\n"
             );
 
             for (uint32 j = 0; j < tableGLYF->glyphs[i].sg.numPoints; j++) {
-                fprintf(output, "       %d", tableGLYF->glyphs[i].sg.yCoordinates[j]);
+                if (j != 0 && j % numbers_per_line == 0) {
+                    fprintf(output, "\n");
+                }
+
+                fprintf(output, "           %6d, ", tableGLYF->glyphs[i].sg.yCoordinates[j]);
             }
 
             fprintf(
                 output,
-                "       }\n"
+                "\n       }\n"
                 "       numPoints: %u\n"
                 "   }\n",
                 tableGLYF->glyphs[i].sg.numPoints
@@ -930,12 +981,16 @@ void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, FILE* output) {
             );
 
             for (uint32 j = 0; j < tableGLYF->glyphs[i].cg.numInstructions; j++) {
-                fprintf(output, "           %u\n", tableGLYF->glyphs[i].cg.instructions[j]);
+                if (j != 0 && j % numbers_per_line == 0) {
+                    fprintf(output, "\n");
+                }
+
+                fprintf(output, "           %4u, ", tableGLYF->glyphs[i].cg.instructions[j]);
             }
 
             fprintf(
                 output,
-                "       }\n"
+                "\n       }\n"
                 "   }\n"
             );
         }
