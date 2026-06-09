@@ -47,7 +47,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     if (argc > 1) {
         string_copy(&RenderObjectPath, &(string){.str = argv[1], .len = strlen(argv[1]), .__memsize = -1});
     } else {
-        string_copy(&RenderObjectPath, &STRING("../objects/Flower.obj"));
+        string_copy(&RenderObjectPath, &STRING("../../objects/Flower.obj"));
     }
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -80,8 +80,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     graphics_pipeline_append_vertex_buffer_description(&graphicsPipeline, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
     graphics_pipeline_append_vertex_attribute(&graphicsPipeline, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
     graphics_pipeline_append_color_target_description_default(&graphicsPipeline, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), get_SDL_main_window()));
-    graphics_pipeline_attach_vertex_shader(&graphicsPipeline, &STRING("../shaders/example1/vertex.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
-    graphics_pipeline_attach_fragment_shader(&graphicsPipeline, &STRING("../shaders/example1/fragment.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_attach_vertex_shader(&graphicsPipeline, &STRING("../../shaders/example1/vertex.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_attach_fragment_shader(&graphicsPipeline, &STRING("../../shaders/example1/fragment.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
     graphics_pipeline_generate(&graphicsPipeline);
 
     material_create(&backgroundMat, &graphicsPipeline);
@@ -90,7 +90,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     render_object_create(&background, &graphicsPipeline, &backgroundMat);
     render_object_create(&foreground, &graphicsPipeline, &foregroundMat);
 
-    meshobject_load_objfile(&background.mesh, STRING("../objects/SubdPlane.obj"));
+    meshobject_load_objfile(&background.mesh, STRING("../../objects/SubdPlane.obj"));
     meshobject_load_objfile(&foreground.mesh, RenderObjectPath);
 
     uniform_buffer_set_vec(

@@ -28,9 +28,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     }
 
     size_t font_file_size;
-    uint8_t* font_file = (uint8_t*)SDL_LoadFile("../fonts/LiberationMono-Regular.ttf", &font_file_size);
+    uint8_t* font_file = (uint8_t*)SDL_LoadFile("../../fonts/LiberationMono-Regular.ttf", &font_file_size);
 
-    FILE* fptr = fopen("log.txt", "w");
+    FILE* fptr = fopen("../log.txt", "w");
 
     OTFTableDirectory* tbdir = FontParser_acquire_table_directory(font_file);
     OTFTableHEAD* tbhead = FontParser_acquire_table_head(font_file, tbdir);
@@ -39,6 +39,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     OTFTableHMTX* tbhmtx = FontParser_acquire_table_hmtx(font_file, tbdir, tbhhea, tbmaxp);
     OTFTableCMAP* tbcmap = FontParser_acquire_table_cmap(font_file, tbdir);
     OTFTableLOCA* tbloca = FontParser_acquire_table_loca(font_file, tbdir, tbhead, tbmaxp);
+    OTFTableGLYF* tbglyf = FontParser_acquire_table_glyf(font_file, tbdir, tbmaxp, tbloca, tbhead);
 
     FontParser_print_table_directory(tbdir, fptr);
     FontParser_print_table_head(tbhead, fptr);
@@ -47,7 +48,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     FontParser_print_table_hmtx(tbhmtx, tbhhea, tbmaxp, fptr);
     FontParser_print_table_cmap(tbcmap, fptr);
     FontParser_print_table_loca(tbloca, tbhead, tbmaxp, fptr);
+    FontParser_print_table_glyf(tbglyf, fptr);
 
+    FontParser_release_table_glyf(&tbglyf);
     FontParser_release_table_loca(&tbloca);
     FontParser_release_table_cmap(&tbcmap);
     FontParser_release_table_hmtx(&tbhmtx);

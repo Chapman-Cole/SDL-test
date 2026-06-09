@@ -2,6 +2,7 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 #include "engine.h"
+#include <stdint.h>
 
 typedef struct Particle {
     InstanceRenderObject robj;
@@ -85,8 +86,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     graphics_pipeline_append_vertex_attribute(&graphicsPipeline, 2, 2, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
 
     graphics_pipeline_append_color_target_description_default(&graphicsPipeline, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), get_SDL_main_window()));
-    graphics_pipeline_attach_vertex_shader(&graphicsPipeline, &STRING("../shaders/example4/example4.vert"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
-    graphics_pipeline_attach_fragment_shader(&graphicsPipeline, &STRING("../shaders/example4/example4.frag"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_attach_vertex_shader(&graphicsPipeline, &STRING("../../shaders/example4/example4.vert"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_attach_fragment_shader(&graphicsPipeline, &STRING("../../shaders/example4/example4.frag"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
     graphics_pipeline_generate(&graphicsPipeline);
 
     material_create(&objMat1, &graphicsPipeline);
@@ -144,7 +145,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     particles.robj.scale[0] = 0.002f;
     particles.robj.scale[1] = 0.002f;
 
-    compute_pipeline_create(&computePipeline, &STRING("../shaders/example4/example4compute.glsl"), SHADER_COMPILATION_GLSL_PATH, &STRING("main"));
+    compute_pipeline_create(&computePipeline, &STRING("../../shaders/example4/example4compute.glsl"), SHADER_COMPILATION_GLSL_PATH, &STRING("main"));
     GPUBuffer_create(&positionBuffer, NUM_PARTICLES * sizeof(vec3), SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_BUFFERUSAGE_VERTEX);
     GPUBuffer_create(&velocityBuffer, NUM_PARTICLES * sizeof(vec3), SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_BUFFERUSAGE_VERTEX);
 

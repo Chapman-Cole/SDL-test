@@ -562,7 +562,7 @@ void FontParser_print_table_loca(OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEA
     );
 }
 
-OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableMAXP* tableMAXP) {
+OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableMAXP* tableMAXP, OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEAD) {
     TableRecord* tableRec = get_table_record(tableDir, (Tag){'g', 'l', 'y', 'f'});
 
     uint32 glyf_offset = tableRec->offset;
@@ -570,29 +570,60 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
 
     OTFTableGLYF* table_glyf = (OTFTableGLYF*)malloc(sizeof(OTFTableGLYF));
 
+    table_glyf->numGlyphs = tableMAXP->numGlyphs;
     table_glyf->glyphs = (Glyph*)malloc(tableMAXP->numGlyphs * sizeof(Glyph));
 
     uint8_t* glyf_ptr = ttf_file + glyf_offset;
 
     for (uint32 i = 0; i < tableMAXP->numGlyphs; i++) {
+        uint32 glyphSize = 0;
+        if (tableHEAD->indexToLocFormat == 0) {
+            // short offsets
+            glyphSize = tableLOCA->offsets16[i + 1] - tableLOCA->offsets16[i];
+        } else if (tableHEAD->indexToLocFormat == 1) {
+            // long offsets
+            glyphSize = tableLOCA->offsets32[i + 1] - tableLOCA->offsets32[i];
+        }
+
+        // This is allowed for some reason, and it basically just means to skip over these glyphs. 
+        // I think these types of glyphs with a size of 0 are just meant to be white spaces
+        if (glyphSize == 0) {
+            table_glyf->glyphs[i].header.numberOfContours = 0;
+            table_glyf->glyphs[i].header.xMin = 0;
+            table_glyf->glyphs[i].header.yMin = 0;
+            table_glyf->glyphs[i].header.xMax = 0;
+            table_glyf->glyphs[i].header.yMax = 0;
+            table_glyf->glyphs[i].sg.endPtsOfContours = NULL;
+            table_glyf->glyphs[i].sg.flags = NULL;
+            table_glyf->glyphs[i].sg.instructionLength = 0;
+            table_glyf->glyphs[i].sg.instructions = NULL;
+            table_glyf->glyphs[i].sg.numPoints = 0;
+            table_glyf->glyphs[i].sg.xCoordinates = NULL;
+            table_glyf->glyphs[i].sg.yCoordinates = NULL;
+            continue;
+        }
+
         table_glyf->glyphs[i].header.numberOfContours = advance_16b(&glyf_ptr);
         table_glyf->glyphs[i].header.xMin = advance_16b(&glyf_ptr);
         table_glyf->glyphs[i].header.yMin = advance_16b(&glyf_ptr);
         table_glyf->glyphs[i].header.xMax = advance_16b(&glyf_ptr);
         table_glyf->glyphs[i].header.yMax = advance_16b(&glyf_ptr);
 
-        if (table_glyf->glyphs[i].header.numberOfContours >= 0) {
+        if (table_glyf->glyphs[i].header.numberOfContours > 0) {
             // Handle the case for a simple glyph
             table_glyf->glyphs[i].sg.endPtsOfContours = (uint16*)malloc(table_glyf->glyphs[i].header.numberOfContours * sizeof(uint16));
-            memcpy(table_glyf->glyphs[i].sg.endPtsOfContours, glyf_ptr, table_glyf->glyphs[i].header.numberOfContours * sizeof(uint16));
-            glyf_ptr += table_glyf->glyphs[i].header.numberOfContours * sizeof(uint16);
+            for (uint32 j = 0; j < table_glyf->glyphs[i].header.numberOfContours; j++) {
+                table_glyf->glyphs[i].sg.endPtsOfContours[j] = advance_16b(&glyf_ptr);
+            }
 
             table_glyf->glyphs[i].sg.instructionLength = advance_16b(&glyf_ptr);
             if (table_glyf->glyphs[i].sg.instructionLength == 0) {
                 table_glyf->glyphs[i].sg.instructions = NULL;
             } else {
                 table_glyf->glyphs[i].sg.instructions = (uint8*)malloc(table_glyf->glyphs[i].sg.instructionLength * sizeof(uint8));
-                memcpy(table_glyf->glyphs[i].sg.instructions, glyf_ptr, table_glyf->glyphs[i].sg.instructionLength * sizeof(uint8));
+                for (uint32 j = 0; j < table_glyf->glyphs[i].sg.instructionLength; j++) {
+                    table_glyf->glyphs[i].sg.instructions[j] = advance_8b(&glyf_ptr);
+                }
             }
 
             // The last element of the endPtsOfContours array gives the highest valued index of any ending point in a contour. Since this is an
@@ -613,22 +644,305 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
                     // The +1 in the memory offset comes from the fact that the number of repeats is the amount that byte repeats in addition
                     // to the initial occurence of that byte
                     memset(table_glyf->glyphs[i].sg.flags + pointCounter + 1, table_glyf->glyphs[i].sg.flags[pointCounter], numRepeats);
-
                     pointCounter += numRepeats;
                 }
 
                 pointCounter++;
             }
-        } else {
+
+            table_glyf->glyphs[i].sg.xCoordinates = (int16*)malloc(numPoints * sizeof(int16));
+
+            pointCounter = 0;
+            while (pointCounter < numPoints) {
+                if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_X_SHORT_VECTOR) {
+                    if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_X_IS_SAME_OR_POSITIVE_X_SHORT_VECTOR) {
+                        // x coordinate is one byte long and positive
+                        table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = (int16)advance_8b(&glyf_ptr);
+                    } else {
+                        // x coordinate is one byte long and negative
+                        table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = -(int16)advance_8b(&glyf_ptr);
+                    }
+                } else {
+                    if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_X_IS_SAME_OR_POSITIVE_X_SHORT_VECTOR) {
+                        // x coordinate is the same as the previous x-coordinate (don't advance any bytes at all)
+                        if (pointCounter == 0) {
+                            // The ttf specification allows the first point to have the repetition flag set since 
+                            // the "coords" are actually delta values, and the starting point is presumed to be (0, 0).
+                            table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = 0;
+                        } else {
+                            table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = table_glyf->glyphs[i].sg.xCoordinates[pointCounter - 1];
+                        }
+                    } else {
+                        // signed 16 bit (2 byte) delta vector
+                        table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = (int16)advance_16b(&glyf_ptr);
+                    }
+                }
+
+                pointCounter++;
+            }
+
+            table_glyf->glyphs[i].sg.yCoordinates = (int16*)malloc(numPoints * sizeof(int16));
+
+            pointCounter = 0;
+            while (pointCounter < numPoints) {
+                if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_Y_SHORT_VECTOR) {
+                    if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_Y_IS_SAME_OR_POSITIVE_Y_SHORT_VECTOR) {
+                        // y coordinate is one byte long and positive
+                        table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = (int16)advance_8b(&glyf_ptr);
+                    } else {
+                        // y coordinate is one byte long and negative
+                        table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = -(int16)advance_8b(&glyf_ptr);
+                    }
+                } else {
+                    if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_Y_IS_SAME_OR_POSITIVE_Y_SHORT_VECTOR) {
+                        // y coordinate is the same as the previous x-coordinate (don't advance any bytes at all)
+                        if (pointCounter == 0) {
+                            // The ttf specification allows the first point to have the repetition flag set since 
+                            // the "coords" are actually delta values, and the starting point is presumed to be (0, 0).
+                            table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = 0;
+                        } else {
+                            table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = table_glyf->glyphs[i].sg.yCoordinates[pointCounter - 1];
+                        }
+                    } else {
+                        // signed 16 bit (2 byte) delta vector
+                        table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = (int16)advance_16b(&glyf_ptr);
+                    }
+                }
+
+                pointCounter++;
+            }
+        } else if (table_glyf->glyphs[i].header.numberOfContours < 0) {
             // Handle the case for a composite glyph
+            table_glyf->glyphs[i].cg.componentGlyphsLength = tableMAXP->maxComponentElements;
+
+            // It could be worthwhile looking into ways to get more accurate sizing for the number of component glyphps, but for now the bit of extra memory
+            // that comes with using the maximum number of component glyphs as a baseline should suffice
+            table_glyf->glyphs[i].cg.componentGlyphs = (ComponentGlyphRecord*)malloc(table_glyf->glyphs[i].cg.componentGlyphsLength * sizeof(ComponentGlyphRecord));
+
+            uint32 componentRecordCount = 0;
+
+            uint16 flags;
+            do {
+                table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].flags = advance_16b(&glyf_ptr);
+                flags = table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].flags;
+
+                table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].glyphIndex = advance_16b(&glyf_ptr);
+
+                if (flags & CG_ARG_1_AND_2_ARE_WORDS) {
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument1 = advance_16b(&glyf_ptr);
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument2 = advance_16b(&glyf_ptr);
+                } else {
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument1 = advance_8b(&glyf_ptr);
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument2 = advance_8b(&glyf_ptr);
+                }
+
+                if (flags & CG_WE_HAVE_A_SCALE) {
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].scale = (F2DOT14)advance_16b(&glyf_ptr);
+                } else if (flags & CG_WE_HAVE_AN_X_AND_Y_SCALE) {
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].xscale = (F2DOT14)advance_16b(&glyf_ptr);
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].yscale = (F2DOT14)advance_16b(&glyf_ptr);
+                } else if (flags & CG_WE_HAVE_A_TWO_BY_TWO) {
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].xscale = (F2DOT14)advance_16b(&glyf_ptr);
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].scale01 = (F2DOT14)advance_16b(&glyf_ptr);
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].scale10 = (F2DOT14)advance_16b(&glyf_ptr);
+                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].yscale = (F2DOT14)advance_16b(&glyf_ptr);
+                }
+                
+                componentRecordCount++;
+            } while (flags & CG_MORE_COMPONENTS);
+
+            table_glyf->glyphs[i].cg.componentGlyphsLength = componentRecordCount;
+
+            table_glyf->glyphs[i].cg.instructions = NULL;
+            if (flags & CG_WE_HAVE_INSTRUCTIONS) {
+                table_glyf->glyphs[i].cg.numInstructions = advance_16b(&glyf_ptr);
+                table_glyf->glyphs[i].cg.instructions = (uint8*)malloc(table_glyf->glyphs[i].cg.numInstructions * sizeof(uint8));
+                for (uint32 j = 0; j < table_glyf->glyphs[i].cg.numInstructions; j++) {
+                    table_glyf->glyphs[i].cg.instructions[j] = advance_8b(&glyf_ptr);
+                }
+            }
+        } else {
+            // In the case where the number of contours is 0, that just means there is no point data. It's pretty much just a blank space
+            // It's still classified as a simple glyph, but it is easier to handle it as a special case
+            table_glyf->glyphs[i].sg.endPtsOfContours = NULL;
+            table_glyf->glyphs[i].sg.flags = NULL;
+            table_glyf->glyphs[i].sg.xCoordinates = NULL;
+            table_glyf->glyphs[i].sg.yCoordinates = NULL;
+            table_glyf->glyphs[i].sg.numPoints = 0;
+            table_glyf->glyphs[i].sg.instructionLength = 0;
+            table_glyf->glyphs[i].sg.instructions = NULL;
+
+            // Interestingly enough, even with no contours a simple glyph can still technically have instructions
+            // However, the only way to verify if there are instructions is to use the loca table to calculate the size of the glyf
+
+            // The header for the glyph itself is just 10 bytes, so if the glyph size is greater than that, it means there must be instructions
+            if (glyphSize > 10) {
+                table_glyf->glyphs[i].sg.instructionLength = advance_16b(&glyf_ptr);
+                table_glyf->glyphs[i].sg.instructions = (uint8*)malloc(table_glyf->glyphs[i].sg.instructionLength * sizeof(uint8));
+                for (uint32 j = 0; j < table_glyf->glyphs[i].sg.instructionLength; j++) {
+                    table_glyf->glyphs[i].sg.instructions[j] = advance_8b(&glyf_ptr);
+                }
+            }
         }
+
+        printf("Size: %u | Bytes Read: %u\n", glyphSize, glyf_ptr - (ttf_file + glyf_offset));
     }
+
+    return table_glyf;
 }
 
 void FontParser_release_table_glyf(OTFTableGLYF** tableGLYF) {
+    OTFTableGLYF* table_glyf = *tableGLYF;
 
+    for (uint32 i = 0; i < table_glyf->numGlyphs; i++) {
+        if (table_glyf->glyphs[i].header.numberOfContours >= 0) {
+            // This means the simple glyph will have to be freed
+            free(table_glyf->glyphs[i].sg.endPtsOfContours);
+            free(table_glyf->glyphs[i].sg.flags);
+            free(table_glyf->glyphs[i].sg.instructions);
+            free(table_glyf->glyphs[i].sg.xCoordinates);
+            free(table_glyf->glyphs[i].sg.yCoordinates);
+        } else {
+            // This means the composite glyph will have to be freed
+            free(table_glyf->glyphs[i].cg.componentGlyphs);
+            free(table_glyf->glyphs[i].cg.instructions);
+        }
+    }
+
+    free(table_glyf->glyphs);
+    free(*tableGLYF);
+    *tableGLYF = NULL;
 }
 
-void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, OTFTableMAXP* tableMAXP, FILE* output) {
+void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, FILE* output) {
+    fprintf(
+        output,
+        "Table GLYF: {\n"
+    );
 
+    for (uint32 i = 0; i < tableGLYF->numGlyphs; i++) {
+        if (tableGLYF->glyphs[i].header.numberOfContours >= 0) {
+            // Simple glyph case
+            fprintf(
+                output,
+                "   Simple Glyph {\n"
+                "       endPtsOfContours {\n"
+            );
+
+            for (uint32 j = 0; j < tableGLYF->glyphs[i].header.numberOfContours; j++) {
+                fprintf(output, "       %u\n", tableGLYF->glyphs[i].sg.endPtsOfContours[j]);
+            }
+
+            fprintf(
+                output, 
+                "       }\n"
+                "       instructionLength: %u\n"
+                "       instructions {\n",
+                tableGLYF->glyphs[i].sg.instructionLength
+            );
+
+            for (uint32 j = 0; j < tableGLYF->glyphs[i].sg.instructionLength; j++) {
+                fprintf(output, "       %u\n", tableGLYF->glyphs[i].sg.instructions[j]);
+            }
+
+            fprintf(
+                output,
+                "       }\n"
+                "       flags {\n"
+            );
+
+            for (uint32 j = 0; j < tableGLYF->glyphs[i].sg.numPoints; j++) {
+                fprintf(output, "       %X\n", tableGLYF->glyphs[i].sg.flags[j]);
+            }
+
+            fprintf(
+                output,
+                "       }\n"
+                "       xCoordinates {\n"
+            );
+
+            for (uint32 j = 0; j < tableGLYF->glyphs[i].sg.numPoints; j++) {
+                fprintf(output, "       %d", tableGLYF->glyphs[i].sg.xCoordinates[j]);
+            }
+
+            fprintf(
+                output,
+                "       }\n"
+                "       yCoordinates {\n"
+            );
+
+            for (uint32 j = 0; j < tableGLYF->glyphs[i].sg.numPoints; j++) {
+                fprintf(output, "       %d", tableGLYF->glyphs[i].sg.yCoordinates[j]);
+            }
+
+            fprintf(
+                output,
+                "       }\n"
+                "       numPoints: %u\n"
+                "   }\n",
+                tableGLYF->glyphs[i].sg.numPoints
+            );
+        } else {
+            // Composite glyph case
+            fprintf(
+                output,
+                "   Composite Glyph {\n"
+                "       componentGlyphs {\n"
+            );
+
+            for (uint32 j = 0; j < tableGLYF->glyphs[i].cg.componentGlyphsLength; j++) {
+                fprintf(
+                    output,
+                    "           {\n"
+                    "               flags: %X\n"
+                    "               glyphIndex: %u\n"
+                    "               argument1: %u\n"
+                    "               argument2: %u\n",
+                    tableGLYF->glyphs[i].cg.componentGlyphs[j].flags,
+                    tableGLYF->glyphs[i].cg.componentGlyphs[j].glyphIndex,
+                    tableGLYF->glyphs[i].cg.componentGlyphs[j].argument1,
+                    tableGLYF->glyphs[i].cg.componentGlyphs[j].argument2
+                );
+
+                if (tableGLYF->glyphs[i].cg.componentGlyphs[j].flags & CG_WE_HAVE_A_SCALE) {
+                    fprintf(output, "              scale: %d\n", tableGLYF->glyphs[i].cg.componentGlyphs[j].scale);
+                } else if (tableGLYF->glyphs[i].cg.componentGlyphs[j].flags & CG_WE_HAVE_AN_X_AND_Y_SCALE) {
+                    fprintf(output, "              xscale: %d\n", tableGLYF->glyphs[i].cg.componentGlyphs[j].xscale);
+                    fprintf(output, "              yscale: %d\n", tableGLYF->glyphs[i].cg.componentGlyphs[j].yscale);
+                } else if (tableGLYF->glyphs[i].cg.componentGlyphs[j].flags & CG_WE_HAVE_A_TWO_BY_TWO) {
+                    fprintf(output, "              xscale: %d\n", tableGLYF->glyphs[i].cg.componentGlyphs[j].xscale);
+                    fprintf(output, "              scale01: %d\n", tableGLYF->glyphs[i].cg.componentGlyphs[j].scale01);
+                    fprintf(output, "              scale10: %d\n", tableGLYF->glyphs[i].cg.componentGlyphs[j].scale10);
+                    fprintf(output, "              yscale: %d\n", tableGLYF->glyphs[i].cg.componentGlyphs[j].yscale);
+                }
+
+                fprintf(output, "           }\n");
+            }
+
+            fprintf(
+                output, 
+                "       }\n"
+                "       componentGlyphsLength: %u\n"
+                "       numInstructions: %u\n"
+                "       instructions {\n",
+                tableGLYF->glyphs[i].cg.componentGlyphsLength,
+                tableGLYF->glyphs[i].cg.numInstructions
+            );
+
+            for (uint32 j = 0; j < tableGLYF->glyphs[i].cg.numInstructions; j++) {
+                fprintf(output, "           %u\n", tableGLYF->glyphs[i].cg.instructions[j]);
+            }
+
+            fprintf(
+                output,
+                "       }\n"
+                "   }\n"
+            );
+        }
+    }
+
+    fprintf(
+        output,
+        "}\n"
+    );
 }

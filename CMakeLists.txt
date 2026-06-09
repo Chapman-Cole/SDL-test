@@ -6,7 +6,6 @@ include(cmake/find_SDL3.cmake)
 include(cmake/find_VulkanComponents.cmake)
 include(cmake/find_cglm.cmake)
 include(cmake/find_SDL3_image.cmake)
-include(cmake/find_SDL3_ttf.cmake)
 
 # This is helpful for vscode projects
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -32,7 +31,7 @@ endif()
 option(USE_STATIC_ENGINE "Use the static library version of the engine (off by default)" OFF)
 
 # Set this to true in order to compile with asan enabled
-set(ASAN_ON FALSE)
+set(ASAN_ON TRUE)
 
 if(ASAN_ON)
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")

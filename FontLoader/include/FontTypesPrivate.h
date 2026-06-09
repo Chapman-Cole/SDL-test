@@ -164,6 +164,19 @@ typedef struct SimpleGlyph {
     uint32 numPoints; // This is not included in font files, but I have added it for ease of use
 } SimpleGlyph;
 
+#define CG_ARG_1_AND_2_ARE_WORDS 0x0001
+#define CG_ARGS_ARE_XY_VALUES 0x0002
+#define CG_ROUND_XY_TO_GRID 0x0004
+#define CG_WE_HAVE_A_SCALE 0x0008
+#define CG_MORE_COMPONENTS 0x0020
+#define CG_WE_HAVE_AN_X_AND_Y_SCALE 0x0040
+#define CG_WE_HAVE_A_TWO_BY_TWO 0x0080
+#define CG_WE_HAVE_INSTRUCTIONS 0x0100
+#define CG_USE_MY_METRICS 0x0200
+#define CG_OVERLAP_COMPOUND 0x0400
+#define CG_SCALED_COMPONENT_OFFSET 0x0800
+#define UNSCALED_COMPONENT_OFFSET 0x1000
+
 typedef struct ComponentGlyphRecord {
     uint16 flags;
     uint16 glyphIndex;
@@ -197,6 +210,7 @@ typedef struct Glyph {
 
 struct OTFTableGLYF {
     Glyph* glyphs;
+    uint32 numGlyphs;
 };
 
 

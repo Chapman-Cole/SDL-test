@@ -2,16 +2,12 @@
 #define TEXTRENDEROBJECT_H
 
 #include <SDL3/SDL.h>
-#include <SDL3_ttf/SDL_ttf.h>
-#include <SDL3_ttf/SDL_textengine.h>
 #include "GraphicsPipeline.h"
 #include <cglm/cglm.h>
 #include "GPUBuffers.h"
 #include "Strings.h"
 
 static GraphicsPipeline TextGraphicsPipeline;
-
-static TTF_TextEngine* TextEngine = NULL;
 
 typedef struct TextRenderObject {
     GraphicsPipeline* pipeline;
@@ -20,8 +16,6 @@ typedef struct TextRenderObject {
 
     GPUBuffer vertexBuffer;
     GPUBuffer uvBuffer;
-
-    TTF_Text text;
 } TextRenderObject;
 
 // Must be called before using any of the other text related functions

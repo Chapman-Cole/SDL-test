@@ -36,7 +36,6 @@ include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
 include(../cmake/use_SDL3_image.cmake)
-include(../cmake/use_SDL3_ttf.cmake)
 
 # Shared object libraries (dynamic link librareis) require position independent code
 set_target_properties(EngineObjectLib PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -58,7 +57,6 @@ include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
 include(../cmake/use_SDL3_image.cmake)
-include(../cmake/use_SDL3_ttf.cmake)
 
 # ------------------------------------------------------------------------------
 
@@ -81,7 +79,6 @@ include(../cmake/use_SDL3.cmake)
 include(../cmake/use_VulkanComponents.cmake)
 include(../cmake/use_cglm.cmake)
 include(../cmake/use_SDL3_image.cmake)
-include(../cmake/use_SDL3_ttf.cmake)
 
 if(UNIX)
     target_link_libraries(${project_name} PRIVATE

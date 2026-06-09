@@ -69,10 +69,10 @@ void FontParser_release_table_loca(OTFTableLOCA** tableLOCA);
 
 void FontParser_print_table_loca(OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEAD, OTFTableMAXP* tableMAXP, FILE* output);
 
-OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableMAXP* tableMAXP);
+OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableMAXP* tableMAXP, OTFTableLOCA* tableLOCA, OTFTableHEAD* tableHEAD);
 
 void FontParser_release_table_glyf(OTFTableGLYF** tableGLYF);
 
-void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, OTFTableMAXP* tableMAXP, FILE* output);
+void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, FILE* output);
 
 #endif
