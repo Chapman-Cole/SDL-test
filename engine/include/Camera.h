@@ -62,6 +62,8 @@ typedef struct Camera2D {
 
 int camera2D_screen_to_world(Camera2D* cam, float aspectRatio, vec2 screen, vec2 out);
 
+int camera2D_world_to_screen(Camera2D* cam, float aspectRatio, vec2 world, vec2 out);
+
 int camera_screen_to_world(Camera* cam, vec2 screen, vec3 out);
 
 

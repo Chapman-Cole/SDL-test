@@ -1,6 +1,4 @@
 #include "FontParser.h"
-// This must come after FontParser.h
-#include "FontTypesPrivate.h"
 #include "ParsingHelpers.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -598,7 +596,7 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
         uint32 glyphSize = 0;
         if (tableHEAD->indexToLocFormat == 0) {
             // short offsets (these store the offset divided by two)
-            glyphSize = 2 * tableLOCA->offsets16[i + 1] - 2 * tableLOCA->offsets16[i];
+            glyphSize = 2 * (uint32)tableLOCA->offsets16[i + 1] - 2 * (uint32)tableLOCA->offsets16[i];
 
             // Due to glyfs being aligned to 2 byte boundaries, there could be extra bytes at
             // the end of the glyf that don't need to be parsed. This means it is easier to manually set
@@ -640,6 +638,7 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
 
         if (table_glyf->glyphs[i].header.numberOfContours > 0) {
             // Handle the case for a simple glyph
+
             table_glyf->glyphs[i].sg.endPtsOfContours = (uint16*)malloc(table_glyf->glyphs[i].header.numberOfContours * sizeof(uint16));
             for (uint32 j = 0; j < table_glyf->glyphs[i].header.numberOfContours; j++) {
                 table_glyf->glyphs[i].sg.endPtsOfContours[j] = advance_16b(&glyf_ptr);
@@ -693,14 +692,8 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
                     }
                 } else {
                     if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_X_IS_SAME_OR_POSITIVE_X_SHORT_VECTOR) {
-                        // x coordinate is the same as the previous x-coordinate (don't advance any bytes at all)
-                        if (pointCounter == 0) {
-                            // The ttf specification allows the first point to have the repetition flag set since 
-                            // the "coords" are actually delta values, and the starting point is presumed to be (0, 0).
-                            table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = 0;
-                        } else {
-                            table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = table_glyf->glyphs[i].sg.xCoordinates[pointCounter - 1];
-                        }
+                        // The coordinate remains unchanged, so the delta from the previous coordinate is just zero
+                        table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = 0;
                     } else {
                         // signed 16 bit (2 byte) delta vector
                         table_glyf->glyphs[i].sg.xCoordinates[pointCounter] = (int16)advance_16b(&glyf_ptr);
@@ -724,14 +717,8 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
                     }
                 } else {
                     if (table_glyf->glyphs[i].sg.flags[pointCounter] & SG_Y_IS_SAME_OR_POSITIVE_Y_SHORT_VECTOR) {
-                        // y coordinate is the same as the previous x-coordinate (don't advance any bytes at all)
-                        if (pointCounter == 0) {
-                            // The ttf specification allows the first point to have the repetition flag set since 
-                            // the "coords" are actually delta values, and the starting point is presumed to be (0, 0).
-                            table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = 0;
-                        } else {
-                            table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = table_glyf->glyphs[i].sg.yCoordinates[pointCounter - 1];
-                        }
+                        // The coordinate remains unchanged, so delta from the previous coordinate is just 0
+                        table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = 0;
                     } else {
                         // signed 16 bit (2 byte) delta vector
                         table_glyf->glyphs[i].sg.yCoordinates[pointCounter] = (int16)advance_16b(&glyf_ptr);
@@ -783,6 +770,7 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
             table_glyf->glyphs[i].cg.componentGlyphsLength = componentRecordCount;
 
             table_glyf->glyphs[i].cg.instructions = NULL;
+            table_glyf->glyphs[i].cg.numInstructions = 0;
             if (flags & CG_WE_HAVE_INSTRUCTIONS) {
                 table_glyf->glyphs[i].cg.numInstructions = advance_16b(&glyf_ptr);
                 table_glyf->glyphs[i].cg.instructions = (uint8*)malloc(table_glyf->glyphs[i].cg.numInstructions * sizeof(uint8));
@@ -1000,4 +988,62 @@ void FontParser_print_table_glyf(OTFTableGLYF* tableGLYF, FILE* output) {
         output,
         "}\n"
     );
+}
+
+OTFFontFile* FontParser_acquire_font(const char* font_file) {
+    FILE* filePointer = fopen(font_file, "rb");
+
+    if (filePointer == NULL) {
+        printf("Failed to load font.\n");
+        return NULL;
+    }
+
+    fseek(filePointer, 0L, SEEK_END);
+    uint64_t fileSize = ftell(filePointer);
+    rewind(filePointer);
+
+    uint8_t* ttf_file = (uint8_t*)malloc(fileSize);
+
+    fread(ttf_file, 1, fileSize, filePointer);
+
+    fclose(filePointer);
+
+    OTFFontFile* otf_font = (OTFFontFile*)malloc(sizeof(OTFFontFile));
+
+    OTFTableDirectory* tbdir = FontParser_acquire_table_directory(ttf_file);
+
+    otf_font->head = FontParser_acquire_table_head(ttf_file, tbdir);
+    otf_font->hhea = FontParser_acquire_table_hhea(ttf_file, tbdir);
+    otf_font->maxp = FontParser_acquire_table_maxp(ttf_file, tbdir);
+    otf_font->hmtx = FontParser_acquire_table_hmtx(ttf_file, tbdir, otf_font->hhea, otf_font->maxp);
+    otf_font->cmap = FontParser_acquire_table_cmap(ttf_file, tbdir);
+    otf_font->loca = FontParser_acquire_table_loca(ttf_file, tbdir, otf_font->head, otf_font->maxp);
+    otf_font->glyf = FontParser_acquire_table_glyf(ttf_file, tbdir, otf_font->maxp, otf_font->loca, otf_font->head);
+
+    FontParser_release_table_directory(&tbdir);
+    free(ttf_file);
+
+    return otf_font;
+}
+
+void FontParser_release_font(OTFFontFile** font_file) {
+    FontParser_release_table_head(&(*font_file)->head);
+    FontParser_release_table_hhea(&(*font_file)->hhea);
+    FontParser_release_table_maxp(&(*font_file)->maxp);
+    FontParser_release_table_hmtx(&(*font_file)->hmtx);
+    FontParser_release_table_cmap(&(*font_file)->cmap);
+    FontParser_release_table_loca(&(*font_file)->loca);
+    FontParser_release_table_glyf(&(*font_file)->glyf);
+    free(*font_file);
+    *font_file = NULL;
+}
+
+void FontParser_print_font(OTFFontFile* font_file, FILE* output) {
+    FontParser_print_table_head(font_file->head, output);
+    FontParser_print_table_hhea(font_file->hhea, output);
+    FontParser_print_table_maxp(font_file->maxp, output);
+    FontParser_print_table_hmtx(font_file->hmtx, font_file->hhea, font_file->maxp, output);
+    FontParser_print_table_cmap(font_file->cmap, output);
+    FontParser_print_table_loca(font_file->loca, font_file->head, font_file->maxp, output);
+    FontParser_print_table_glyf(font_file->glyf, output);
 }

@@ -4,15 +4,15 @@ int render_object_create(RenderObject* object, GraphicsPipeline* pipeline, Mater
     object->pipeline = pipeline;
     object->material = material;
 
-    object->position.x = 0;
-    object->position.y = 0;
-    object->position.z = 0;
+    object->pos[0] = 0;
+    object->pos[1] = 0;
+    object->pos[2] = 0;
+
+    object->scale[0] = 1.0f;
+    object->scale[1] = 1.0f;
+    object->scale[2] = 1.0f;
 
     glm_quat_identity(object->quaternion);
-    
-    object->scale.x = 1.0f;
-    object->scale.y = 1.0f;
-    object->scale.z = 1.0f;
 
     uniform_buffer_create(&object->vertexUniform, &pipeline->vertexLayout, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT);
     uniform_buffer_create(&object->fragmentUniform, &pipeline->fragmentLayout, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT);
@@ -28,9 +28,14 @@ int render_object_destroy(RenderObject* object) {
     object->pipeline = NULL;
     object->material = NULL;
 
-    object->position.x = 0;
-    object->position.y = 0;
-    object->position.z = 0;
+    object->pos[0] = 0;
+    object->pos[1] = 0;
+    object->pos[2] = 0;
+
+    object->scale[0] = 1.0f;
+    object->scale[1] = 1.0f;
+    object->scale[2] = 1.0f;
+
     glm_quat_identity(object->quaternion);
 
     meshobject_destroy(&object->mesh);

@@ -7,6 +7,19 @@
 
 Camera2D cam = CAMERA2D_DEFAULT;
 
+OTFFontFile* font;
+
+GraphicsPipeline pointsPipeline;
+GraphicsPipeline linePipeline;
+Material pointMat;
+Material lineMat;
+
+const uint32 glyphID = 0;
+
+RenderObject* points;
+RenderObject* lines;
+uint32_t numLines = 0;
+
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
@@ -27,42 +40,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         return SDL_APP_FAILURE;
     }
 
-    size_t font_file_size;
-    uint8_t* font_file = (uint8_t*)SDL_LoadFile("../../fonts/LiberationMono-Regular.ttf", &font_file_size);
-
-    FILE* fptr = fopen("../log.txt", "w");
-
-    OTFTableDirectory* tbdir = FontParser_acquire_table_directory(font_file);
-    OTFTableHEAD* tbhead = FontParser_acquire_table_head(font_file, tbdir);
-    OTFTableHHEA* tbhhea = FontParser_acquire_table_hhea(font_file, tbdir);
-    OTFTableMAXP* tbmaxp = FontParser_acquire_table_maxp(font_file, tbdir);
-    OTFTableHMTX* tbhmtx = FontParser_acquire_table_hmtx(font_file, tbdir, tbhhea, tbmaxp);
-    OTFTableCMAP* tbcmap = FontParser_acquire_table_cmap(font_file, tbdir);
-    OTFTableLOCA* tbloca = FontParser_acquire_table_loca(font_file, tbdir, tbhead, tbmaxp);
-    OTFTableGLYF* tbglyf = FontParser_acquire_table_glyf(font_file, tbdir, tbmaxp, tbloca, tbhead);
-
-    FontParser_print_table_directory(tbdir, fptr);
-    FontParser_print_table_head(tbhead, fptr);
-    FontParser_print_table_hhea(tbhhea, fptr);
-    FontParser_print_table_maxp(tbmaxp, fptr);
-    FontParser_print_table_hmtx(tbhmtx, tbhhea, tbmaxp, fptr);
-    FontParser_print_table_cmap(tbcmap, fptr);
-    FontParser_print_table_loca(tbloca, tbhead, tbmaxp, fptr);
-    FontParser_print_table_glyf(tbglyf, fptr);
-
-    FontParser_release_table_glyf(&tbglyf);
-    FontParser_release_table_loca(&tbloca);
-    FontParser_release_table_cmap(&tbcmap);
-    FontParser_release_table_hmtx(&tbhmtx);
-    FontParser_release_table_maxp(&tbmaxp);
-    FontParser_release_table_hhea(&tbhhea);
-    FontParser_release_table_head(&tbhead);
-    FontParser_release_table_directory(&tbdir);
-
-    fclose(fptr);
-
-    SDL_free(font_file);
-
     SDL_ClaimWindowForGPUDevice(device, window);
 
     SDL_SetGPUSwapchainParameters(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_IMMEDIATE);
@@ -71,6 +48,118 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     set_SDL_main_window(window);
 
     GPB_init();
+
+    graphics_pipeline_init(&pointsPipeline);
+    graphics_pipeline_append_vertex_buffer_description(&pointsPipeline, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
+    graphics_pipeline_append_vertex_attribute(&pointsPipeline, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
+    graphics_pipeline_append_color_target_description_default(&pointsPipeline, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), get_SDL_main_window()));
+    graphics_pipeline_attach_vertex_shader(&pointsPipeline, &STRING("../../shaders/example6/vert.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_attach_fragment_shader(&pointsPipeline, &STRING("../../shaders/example6/frag.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_generate(&pointsPipeline);
+
+    graphics_pipeline_init(&linePipeline);
+    graphics_pipeline_append_vertex_buffer_description(&linePipeline, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
+    graphics_pipeline_append_vertex_attribute(&linePipeline, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
+    graphics_pipeline_append_color_target_description_default(&linePipeline, SDL_GetGPUSwapchainTextureFormat(get_SDL_gpu_device(), get_SDL_main_window()));
+    graphics_pipeline_attach_vertex_shader(&linePipeline, &STRING("../../shaders/example6/lines.vert"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_attach_fragment_shader(&linePipeline, &STRING("../../shaders/example6/lines.frag"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
+    graphics_pipeline_generate(&linePipeline);
+
+    material_create(&pointMat, &pointsPipeline);
+    uniform_buffer_set_float(
+        &pointMat.uniform,
+        material_get_handle(&pointMat, &STRING("radius")),
+        0.02
+    );
+    uniform_buffer_set_vec(
+        &pointMat.uniform,
+        material_get_handle(&pointMat, &STRING("color")),
+        (vec4){0.2, 0.2, 1.0, 1.0},
+        4
+    );
+
+    material_create(&lineMat, &linePipeline);
+    uniform_buffer_set_vec(
+        &lineMat.uniform,
+        material_get_handle(&lineMat, &STRING("color")),
+        (vec4){1.0, 0.2, 0.2, 1.0},
+        4
+    );
+
+    font = FontParser_acquire_font("../../fonts/LiberationMono-Regular.ttf");
+
+    points = (RenderObject*)malloc(font->glyf->glyphs[glyphID].sg.numPoints * sizeof(RenderObject));
+
+    Glyph glyph = font->glyf->glyphs[glyphID];
+
+    int32_t cumulativeX = 0;
+    int32_t cumulativeY = 0;
+    for (uint32_t i = 0; i < glyph.sg.numPoints; i++) {
+        render_object_create(&points[i], &pointsPipeline, &pointMat);
+        meshobject_load_objfile(&points[i].mesh, STRING("../../objects/Quad.obj"));
+
+        cumulativeX += font->glyf->glyphs[glyphID].sg.xCoordinates[i];
+        cumulativeY += font->glyf->glyphs[glyphID].sg.yCoordinates[i];
+
+        points[i].pos[0] = (float)(cumulativeX - (glyph.header.xMax + glyph.header.xMin) / 2) * (1.0 / (float)(glyph.header.xMax - glyph.header.xMin));
+        points[i].pos[1] = (float)(cumulativeY - (glyph.header.yMax + glyph.header.yMin) / 2) * (1.0 / (float)(glyph.header.yMax - glyph.header.yMin));
+        points[i].pos[2] = 0.0;
+
+        points[i].scale[0] = 0.1;
+        points[i].scale[1] = 0.1;
+        points[i].scale[2] = 0.1;
+    }
+
+    for (uint32_t i = 0; i < glyph.header.numberOfContours; i++) {
+        if (i > 0) {
+            numLines += glyph.sg.endPtsOfContours[i] - glyph.sg.endPtsOfContours[i-1];
+        } else {
+            numLines += glyph.sg.endPtsOfContours[i] + 1;
+        }
+    }
+
+    lines = (RenderObject*)malloc(numLines * sizeof(RenderObject));
+
+    uint32_t lineCount = 0;
+    uint32_t prevIndex = 0;
+    for (uint32_t i = 0; i < glyph.header.numberOfContours; i++) {
+        for (uint32_t j = prevIndex; j <= glyph.sg.endPtsOfContours[i]; j++) {
+            render_object_create(&lines[lineCount], &linePipeline, &lineMat);
+            meshobject_load_objfile(&lines[lineCount].mesh, STRING("../../objects/Quad.obj"));
+
+            float xBegin, yBegin, xEnd, yEnd;
+
+            if (j == glyph.sg.endPtsOfContours[i]) {
+                xBegin = points[j].pos[0];
+                yBegin = points[j].pos[1];
+                xEnd = points[prevIndex].pos[0];
+                yEnd = points[prevIndex].pos[1];
+            } else {
+                xBegin = points[j].pos[0];
+                yBegin = points[j].pos[1];
+                xEnd = points[j+1].pos[0];
+                yEnd = points[j+1].pos[1];
+            }
+
+            float centerX = (xBegin + xEnd) / 2.0;
+            float centerY = (yBegin + yEnd) / 2.0;
+
+            float angle = SDL_atan2f(yEnd - yBegin, xEnd - xBegin);
+            float length = sqrtf((xEnd - xBegin) * (xEnd - xBegin) + (yEnd - yBegin) * (yEnd - yBegin));
+
+            lines[lineCount].pos[0] = centerX;
+            lines[lineCount].pos[1] = centerY;
+
+            glm_quat(lines[lineCount].quaternion, angle, 0, 0, 1.0);
+
+            lines[lineCount].scale[0] = length / 2.0;
+            lines[lineCount].scale[1] = 0.005;
+
+            lineCount++;
+        }
+
+        prevIndex = glyph.sg.endPtsOfContours[i] + 1;
+    }
 
     return SDL_APP_CONTINUE;
 }
@@ -91,12 +180,40 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     render_queue_init2D(&rQueue, &cam, (float)windowWidth / (float)windowHeight);
     rQueue.backgroundColor = (SDL_FColor){.r = 0.5, .g = 0.5, .b = 0.5, .a = 1.0};
 
+    for (uint32_t i = 0; i < numLines; i++) {
+        render_queue_add(&rQueue, &lines[i]);
+    }
+
+    for (uint32_t i = 0; i < font->glyf->glyphs[glyphID].sg.numPoints; i++) {
+        float* uniformCenter = (float*)points[i].fragmentUniform.uniform;
+        glm_vec3_copy(points[i].pos, uniformCenter);
+        render_queue_add(&rQueue, &points[i]);
+    }
+
     render_queue_submit(&rQueue, NULL, 0, 0, false);
 
     return SDL_APP_CONTINUE;
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    for (uint32_t i = 0; i < font->glyf->glyphs[glyphID].sg.numPoints; i++) {
+        render_object_destroy(&points[i]);
+    }
+    free(points);
+
+    for (uint32_t i = 0; i < numLines; i++) {
+        render_object_destroy(&lines[i]);
+    }
+    free(lines);
+
+    FontParser_release_font(&font);
+
+    material_destroy(&lineMat);
+    graphics_pipeline_destroy(&linePipeline);
+
+    material_destroy(&pointMat);
+    graphics_pipeline_destroy(&pointsPipeline);
+
     GPB_terminate();
     destroy_SDL_gpu_device();
     destroy_SDL_main_window();

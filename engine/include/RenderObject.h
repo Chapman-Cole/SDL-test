@@ -7,19 +7,6 @@
 #include "cglm/cglm.h"
 #include "MeshObject.h"
 
-// Interposes a cglm and an anonymous struct with 3 floats
-// to provide 2 different ways of accessing the same data
-typedef union RenderObjectVector3 {
-    // Anonymous struct so x, y, and z are accessed directly
-    // instead of being nested with dots like object.____
-    struct {
-        float x;
-        float y;
-        float z;
-    };
-    vec3 arr;
-} RenderObjectVector3;
-
 typedef struct RenderObject {
     GraphicsPipeline* pipeline;
     Material* material;
@@ -29,11 +16,12 @@ typedef struct RenderObject {
     UniformBuffer vertexUniform;
     UniformBuffer fragmentUniform;
 
-    RenderObjectVector3 position;
+    vec3 pos;
+
+    vec3 scale;
 
     // This is mostly used internally for rotations
     versor quaternion;
-    RenderObjectVector3 scale;
 } RenderObject;
 
 int render_object_create(RenderObject* object, GraphicsPipeline* pipeline, Material* material);

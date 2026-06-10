@@ -1,0 +1,25 @@
+#version 450
+
+layout (location = 0) in vec3 a_position;
+
+layout (location = 0) out vec3 v_pos;
+
+layout (std140, set = 1, binding = 0) uniform EngineObjectData {
+    mat4 VP;
+    mat4 model;
+} EOData;
+
+layout (std140, set = 1, binding = 1) uniform UserFrameData {
+    vec4 pad;
+} UFData;
+
+layout (std140, set = 1, binding = 2) uniform UserObjectData {
+    vec4 pad;
+} UOData;
+
+void main() {
+    vec4 pos = EOData.VP * EOData.model * vec4(a_position, 1.0);
+    vec4 partial_pos = EOData.model * vec4(a_position, 1.0);
+    v_pos = partial_pos.xyz;
+    gl_Position = pos;
+}

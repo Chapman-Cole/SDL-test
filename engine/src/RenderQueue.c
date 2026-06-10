@@ -1,5 +1,11 @@
 #include "RenderQueue.h"
 
+// Data that is passed to the gpu should be 16 byte aligned to conform to std140
+struct SDL_ALIGNED(16) ModelData {
+    mat4 VP;
+    mat4 model;
+} ModelData;
+
 int render_queue_init(RenderQueue* queue, Camera* cam, float aspectRatio) {
     queue->capacity = 1;
     queue->len = 0;
@@ -245,8 +251,7 @@ int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target
     // It's important to keep in mind that glm functions operate as right multiplication, meaning the ordering
     // becomes the opposite of what you would initially expect
 
-    // This is the MVP matrix, or model, view, projection matrix. 
-    // In the case of a 2D camera, there is no projection matrix
+    // This is the VP matrix, or view, projection matrix. 
     mat4 VP;
     glm_mat4_identity(VP);
     
@@ -344,16 +349,15 @@ int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target
         if (queue->renderItems[i].objectType == RENDER_ITEM_OBJECT) {
             mat4 objectTransform;
             glm_mat4_identity(objectTransform);
-            glm_translate(objectTransform, queue->renderItems[i].object->position.arr);
-            mat4 tempRotation;
-            glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, tempRotation);
-            glm_scale(tempRotation, queue->renderItems[i].object->scale.arr);
+            glm_translate(objectTransform, queue->renderItems[i].object->pos);
+            glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, objectTransform);
+            glm_scale(objectTransform, queue->renderItems[i].object->scale);
 
-            mat4 objectData[2];
-            glm_mat4_copy(VP, objectData[0]);
-            glm_mat4_copy(tempRotation, objectData[1]);
+            struct ModelData engineObjectData;
+            glm_mat4_copy(VP, engineObjectData.VP);
+            glm_mat4_copy(objectTransform, engineObjectData.model);
 
-            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, objectData, sizeof(objectData));
+            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, &engineObjectData, sizeof(ModelData));
 
             // Push user object specific data
             if (queue->renderItems[i].object->vertexUniform.uniform != NULL) {
@@ -411,20 +415,6 @@ int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target
             SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
 
             SDL_DrawGPUIndexedPrimitives(renderPass, queue->renderItems[i].instanceObject->mesh.numIndices, queue->renderItems[i].instanceObject->numInstances, 0, 0, 0);
-        } else if (queue->renderItems[i].objectType == RENDER_ITEM_TEXT_OBJECT) {
-            mat4 objectTransform;
-            glm_mat4_identity(objectTransform);
-            mat4 tempRotation;
-            glm_quat_rotate(objectTransform, queue->renderItems[i].instanceObject->quaternion, tempRotation);
-            glm_scale(tempRotation, queue->renderItems[i].instanceObject->scale);
-
-            mat4 objectData[2];
-            glm_mat4_copy(VP, objectData[0]);
-            glm_mat4_copy(tempRotation, objectData[1]);
-
-            SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_ENGINE_OBJECT_DATA_SLOT, objectData, sizeof(objectData));
-
-            
         }
     }
 

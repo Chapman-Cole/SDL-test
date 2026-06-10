@@ -74,11 +74,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         render_object_create(&particles[i].robj, &graphicsPipeline, &objMat);
         meshobject_load_objfile(&particles[i].robj.mesh, STRING("../../objects/Icosphere.obj"));
-        particles[i].robj.scale.x = 0.4;
-        particles[i].robj.scale.y = 0.4;
-        particles[i].robj.scale.z = 0.4;
+        particles[i].robj.scale[0] = 0.4;
+        particles[i].robj.scale[1] = 0.4;
+        particles[i].robj.scale[2] = 0.4;
 
-        glm_vec3_copy((vec3){10.0f * 2.0f * (SDL_randf() - 0.5f), 10.0f * 2.0f * (SDL_randf() - 0.5f), 10.0f * 2.0f * (SDL_randf() - 0.5f)}, particles[i].robj.position.arr);
+        glm_vec3_copy((vec3){10.0f * 2.0f * (SDL_randf() - 0.5f), 10.0f * 2.0f * (SDL_randf() - 0.5f), 10.0f * 2.0f * (SDL_randf() - 0.5f)}, particles[i].robj.pos);
         glm_vec3_copy((vec3){0.15f * (SDL_randf() - 0.5f), 0.15f * (SDL_randf() - 0.5f), 0.15f * (SDL_randf() - 0.5f)}, particles[i].velocity);
     }
     
@@ -176,11 +176,11 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         vec3 netForce = {0.0f, 0.0f, 0.0f};
         for (int j = 0; j < NUM_PARTICLES; j++) {
             if (j != i) {
-                float dist = glm_vec3_distance(particles[i].robj.position.arr, particles[j].robj.position.arr);
+                float dist = glm_vec3_distance(particles[i].robj.pos, particles[j].robj.pos);
 
-                if (dist > particles[i].robj.scale.x + 0.1f) {
+                if (dist > particles[i].robj.scale[0] + 0.1f) {
                     vec3 forceDir;
-                    glm_vec3_sub(particles[j].robj.position.arr, particles[i].robj.position.arr, forceDir);
+                    glm_vec3_sub(particles[j].robj.pos, particles[i].robj.pos, forceDir);
                     glm_normalize(forceDir);
                 
                     vec3 forceScaled, tempNetForce;
@@ -189,7 +189,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
                     glm_vec3_add(tempNetForce, forceScaled, netForce);
                 } else {
                     vec3 forceDir;
-                    glm_vec3_sub(particles[j].robj.position.arr, particles[i].robj.position.arr, forceDir);
+                    glm_vec3_sub(particles[j].robj.pos, particles[i].robj.pos, forceDir);
                     glm_normalize(forceDir);
                     dist = glm_clamp(dist, 0.01f, 10000.0f);
                 
@@ -210,8 +210,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         vec3 velDelta, tempPos;
         glm_vec3_scale(particles[i].velocity, elapsed, velDelta);
 
-        glm_vec3_copy(particles[i].robj.position.arr, tempPos);
-        glm_vec3_add(tempPos, velDelta, particles[i].robj.position.arr);
+        glm_vec3_copy(particles[i].robj.pos, tempPos);
+        glm_vec3_add(tempPos, velDelta, particles[i].robj.pos);
 
         // This sets values in the fragmentUniform
         glm_vec3_copy(particles[i].velocity, (float*)particles[i].robj.fragmentUniform.uniform);
