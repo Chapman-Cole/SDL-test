@@ -20,6 +20,9 @@ typedef struct OTFTableHMTX OTFTableHMTX;
 
 typedef struct OTFTableCMAP OTFTableCMAP;
 
+typedef struct OTFCMAPFormat4 OTFCMAPFormat4;
+
+
 typedef struct OTFTableLOCA OTFTableLOCA;
 
 typedef struct OTFTableGLYF OTFTableGLYF;
@@ -30,6 +33,7 @@ typedef struct OTFFontFile {
     OTFTableMAXP* maxp;
     OTFTableHMTX* hmtx;
     OTFTableCMAP* cmap;
+    OTFCMAPFormat4* format4;
     OTFTableLOCA* loca;
     OTFTableGLYF* glyf;
 } OTFFontFile;
@@ -160,6 +164,24 @@ struct OTFTableCMAP {
     EncodingRecord* encodingRecords;
 };
 
+// This works for platformID=3,encodingID=1 and platformID=0,encodingID=3 (this corresponds to Unicode BMP)
+struct OTFCMAPFormat4 {
+    uint16 format;
+    uint16 length;
+    uint16 language;
+    uint16 segCountX2;
+    uint16 searchRange;
+    uint16 entrySelector;
+    uint16 rangeShift;
+    uint16* endCode; // has size of segCount (segCountX2 / 2)
+    uint16 reservePad;
+    uint16* startCode; // hase size of segCount
+    int16* idDelta; // has size of segCount
+    uint16* idRangeOffset; // hase size of segCount
+    uint16* glyphIdArray; // variable size
+    uint8_t* arena;
+};
+
 struct OTFTableLOCA {
     union {
         Offset16* offsets16;
@@ -283,6 +305,12 @@ void FontParser_release_table_cmap(OTFTableCMAP** tableCMAP);
 
 void FontParser_print_table_cmap(OTFTableCMAP* tableCMAP, FILE* output);
 
+OTFCMAPFormat4* FontParser_acquire_cmap_format4(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableCMAP* tableCMAP);
+
+void FontParser_release_cmap_format4(OTFCMAPFormat4** cmap_format4);
+
+void FontParser_print_cmap_format4(OTFCMAPFormat4* cmap_format4, FILE* output);
+
 OTFTableLOCA* FontParser_acquire_table_loca(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableHEAD* tableHEAD, OTFTableMAXP* tableMAXP);
 
 void FontParser_release_table_loca(OTFTableLOCA** tableLOCA);
@@ -300,5 +328,7 @@ OTFFontFile* FontParser_acquire_font(const char* font_file);
 void FontParser_release_font(OTFFontFile** font_file);
 
 void FontParser_print_font(OTFFontFile* font_file, FILE* output);
+
+uint32_t FontParser_get_glyphID(OTFFontFile* font_file, uint32 character);
 
 #endif

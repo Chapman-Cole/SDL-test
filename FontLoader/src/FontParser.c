@@ -497,6 +497,203 @@ void FontParser_print_table_cmap(OTFTableCMAP* tableCMAP, FILE* output) {
     fprintf(output, "   }\n}\n");
 }
 
+OTFCMAPFormat4* FontParser_acquire_cmap_format4(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableCMAP* tableCMAP) {
+    TableRecord* tableRec = get_table_record(tableDir, (Tag){'c', 'm', 'a', 'p'});
+
+    uint32 cmap_offset = tableRec->offset;
+    uint32 cmap_length = tableRec->length;
+
+    uint32 format4_offset = 0;
+    for (uint32 i = 0; i < tableCMAP->numTables; i++) {
+        if (
+            (
+                tableCMAP->encodingRecords[i].platformID == 3 &&
+                tableCMAP->encodingRecords[i].encodingID == 1
+            ) ||
+            (
+                tableCMAP->encodingRecords[i].platformID == 0 &&
+                tableCMAP->encodingRecords[i].encodingID == 3
+            )
+        ) {
+            format4_offset = tableCMAP->encodingRecords[i].subtableOffset;
+            break;
+        }
+    }
+
+    // This means none of the supported platformID and encodingID combos necessary for format4 were found
+    if (format4_offset == 0) {
+        return NULL;
+    }
+
+    uint8_t* format4_ptr = ttf_file + cmap_offset + format4_offset;
+
+    OTFCMAPFormat4* format4_table = (OTFCMAPFormat4*)malloc(sizeof(OTFCMAPFormat4));
+
+    format4_table->format = advance_16b(&format4_ptr);
+    format4_table->length = advance_16b(&format4_ptr);
+    format4_table->language = advance_16b(&format4_ptr);
+    format4_table->segCountX2 = advance_16b(&format4_ptr);
+    format4_table->searchRange = advance_16b(&format4_ptr);
+    format4_table->entrySelector = advance_16b(&format4_ptr);
+    format4_table->rangeShift = advance_16b(&format4_ptr);
+
+    uint32 segCount = format4_table->segCountX2 / 2;
+
+    format4_table->arena = (uint8_t*)malloc(format4_table->length - 8 * sizeof(uint16));
+
+    uint16_t* arena_ptr = (uint16_t*)format4_table->arena;
+
+    format4_table->endCode = (uint16*)arena_ptr;
+    arena_ptr += segCount;
+
+    for (uint32 i = 0; i < segCount; i++) {
+        format4_table->endCode[i] = advance_16b(&format4_ptr);
+    }
+
+    format4_table->reservePad = advance_16b(&format4_ptr);
+
+    format4_table->startCode = (uint16*)arena_ptr;
+    arena_ptr += segCount;
+
+    for (uint32 i = 0; i < segCount; i++) {
+        format4_table->startCode[i] = advance_16b(&format4_ptr);
+    }
+
+    format4_table->idDelta = (int16*)arena_ptr;
+    arena_ptr += segCount;
+
+    for (uint32 i = 0; i < segCount; i++) {
+        format4_table->idDelta[i] = (int16)advance_16b(&format4_ptr);
+    }
+
+    format4_table->idRangeOffset = (uint16*)arena_ptr;
+    arena_ptr += segCount;
+
+    for (uint32 i = 0; i < segCount; i++) {
+        format4_table->idRangeOffset[i] = advance_16b(&format4_ptr);
+    }
+
+    // For valid font files this should work just fine, but corrupted files could
+    // cause this to underflow
+    uint32 glyphIDArrayLen = (format4_table->length - 4 * 2 * segCount - 8 * 2) / 2;
+
+    format4_table->glyphIdArray = (uint16*)arena_ptr;
+
+    for (uint32 i = 0; i < glyphIDArrayLen; i++) {
+        format4_table->glyphIdArray[i] = advance_16b(&format4_ptr);
+    }
+
+    return format4_table;
+}
+
+void FontParser_release_cmap_format4(OTFCMAPFormat4** cmap_format4) {
+    free((*cmap_format4)->arena);
+    free(*cmap_format4);
+    *cmap_format4 = NULL;
+}
+
+void FontParser_print_cmap_format4(OTFCMAPFormat4* cmap_format4, FILE* output) {
+    fprintf(
+        output,
+        "CMAP Format4 {\n"
+        "   format: %u\n"
+        "   length: %u\n"
+        "   language: %u\n"
+        "   segCountX2: %u\n"
+        "   searchRange: %u\n"
+        "   entrySelector: %u\n"
+        "   rangeShift: %u\n"
+        "   endCode {\n",
+        cmap_format4->format,
+        cmap_format4->length,
+        cmap_format4->language,
+        cmap_format4->segCountX2,
+        cmap_format4->searchRange,
+        cmap_format4->entrySelector,
+        cmap_format4->rangeShift
+    );
+
+    uint32 segCount = cmap_format4->segCountX2 / 2;
+    uint32 numbers_per_line = 10;
+
+    for (uint32 i = 0; i < segCount; i++) {
+        if (i != 0 && i % numbers_per_line == 0) {
+            fprintf(output, "\n");
+        }
+
+        fprintf(output, "       %6u, ", cmap_format4->endCode[i]);
+    }
+
+    fprintf(
+        output,
+        "\n"
+        "   }\n"
+        "   startCode {\n"
+    );
+
+    for (uint32 i = 0; i < segCount; i++) {
+        if (i != 0 && i % numbers_per_line == 0) {
+            fprintf(output, "\n");
+        }
+
+        fprintf(output, "       %6u, ", cmap_format4->startCode[i]);
+    }
+
+    fprintf(
+        output,
+        "\n"
+        "   }\n"
+        "   idDelta {\n"
+    );
+
+    for (uint32 i = 0; i < segCount; i++) {
+        if (i != 0 && i % numbers_per_line == 0) {
+            fprintf(output, "\n");
+        }
+
+        fprintf(output, "       %6d, ", cmap_format4->idDelta[i]);
+    }
+
+    fprintf(
+        output,
+        "\n"
+        "   }\n"
+        "   idRangeOffset {\n"
+    );
+
+    for (uint32 i = 0; i < segCount; i++) {
+        if (i != 0 && i % numbers_per_line == 0) {
+            fprintf(output, "\n");
+        }
+
+        fprintf(output, "       %6u, ", cmap_format4->idRangeOffset[i]);
+    }
+
+    fprintf(
+        output,
+        "\n"
+        "   }\n"
+        "   glyphIdArray {\n"
+    );
+
+    uint32 glyphIDArrayLen = (cmap_format4->length - 4 * 2 * segCount - 8 * 2) / 2;
+
+    for (uint32 i = 0; i < glyphIDArrayLen; i++) {
+        if (i != 0 && i % numbers_per_line == 0) {
+            fprintf(output, "\n");
+        }
+
+        fprintf(output, "       %6u, ", cmap_format4->glyphIdArray[i]);
+    }
+
+    fprintf(
+        output,
+        "\n"
+        "   }\n"
+        "}\n"
+    );
+}
+
 OTFTableLOCA* FontParser_acquire_table_loca(uint8_t* ttf_file, OTFTableDirectory* tableDir, OTFTableHEAD* tableHEAD, OTFTableMAXP* tableMAXP) {
     TableRecord* tableRec = get_table_record(tableDir, (Tag){'l', 'o', 'c', 'a'});
 
@@ -748,8 +945,14 @@ OTFTableGLYF* FontParser_acquire_table_glyf(uint8_t* ttf_file, OTFTableDirectory
                     table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument1 = advance_16b(&glyf_ptr);
                     table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument2 = advance_16b(&glyf_ptr);
                 } else {
-                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument1 = advance_8b(&glyf_ptr);
-                    table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument2 = advance_8b(&glyf_ptr);
+                    if (flags & CG_ARGS_ARE_XY_VALUES) {
+                        // If the arguments are offsets, then the byte values are signed 8 bit integers
+                        table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument1 = (int8_t)advance_8b(&glyf_ptr);
+                        table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument2 = (int8_t)advance_8b(&glyf_ptr);
+                    } else {
+                        table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument1 = advance_8b(&glyf_ptr);
+                        table_glyf->glyphs[i].cg.componentGlyphs[componentRecordCount].argument2 = advance_8b(&glyf_ptr);
+                    }
                 }
 
                 if (flags & CG_WE_HAVE_A_SCALE) {
@@ -1017,6 +1220,7 @@ OTFFontFile* FontParser_acquire_font(const char* font_file) {
     otf_font->maxp = FontParser_acquire_table_maxp(ttf_file, tbdir);
     otf_font->hmtx = FontParser_acquire_table_hmtx(ttf_file, tbdir, otf_font->hhea, otf_font->maxp);
     otf_font->cmap = FontParser_acquire_table_cmap(ttf_file, tbdir);
+    otf_font->format4 = FontParser_acquire_cmap_format4(ttf_file, tbdir, otf_font->cmap);
     otf_font->loca = FontParser_acquire_table_loca(ttf_file, tbdir, otf_font->head, otf_font->maxp);
     otf_font->glyf = FontParser_acquire_table_glyf(ttf_file, tbdir, otf_font->maxp, otf_font->loca, otf_font->head);
 
@@ -1032,6 +1236,7 @@ void FontParser_release_font(OTFFontFile** font_file) {
     FontParser_release_table_maxp(&(*font_file)->maxp);
     FontParser_release_table_hmtx(&(*font_file)->hmtx);
     FontParser_release_table_cmap(&(*font_file)->cmap);
+    FontParser_release_cmap_format4(&(*font_file)->format4);
     FontParser_release_table_loca(&(*font_file)->loca);
     FontParser_release_table_glyf(&(*font_file)->glyf);
     free(*font_file);
@@ -1044,6 +1249,42 @@ void FontParser_print_font(OTFFontFile* font_file, FILE* output) {
     FontParser_print_table_maxp(font_file->maxp, output);
     FontParser_print_table_hmtx(font_file->hmtx, font_file->hhea, font_file->maxp, output);
     FontParser_print_table_cmap(font_file->cmap, output);
+    FontParser_print_cmap_format4(font_file->format4, output);
     FontParser_print_table_loca(font_file->loca, font_file->head, font_file->maxp, output);
     FontParser_print_table_glyf(font_file->glyf, output);
+}
+
+uint32_t FontParser_get_glyphID(OTFFontFile* font_file, uint32 character) {
+    uint32 segments = font_file->format4->segCountX2 / 2;
+
+    // Get the index of the first end code greater than or equal to character
+    int64_t endCodeIndex = -1;
+    for (uint32 i = 0; i < segments; i++) {
+        if (font_file->format4->endCode[i] >= character) {
+            endCodeIndex = i;
+            break;
+        }
+    }
+
+    if (endCodeIndex < 0) {
+        return 0;
+    }
+
+    // Make sure the character falls within the range of the segment
+    if (font_file->format4->startCode[endCodeIndex] <= character) {
+        if (font_file->format4->idRangeOffset[endCodeIndex] == 0) {
+            int32_t glyphID = (int32_t)font_file->format4->idDelta[endCodeIndex] + (int32_t)character;
+
+            if (glyphID > 0) {
+                return (uint32_t)glyphID;
+            } else {
+                return (uint32)glyphID + 65536;
+            }
+        } else {
+            return *(font_file->format4->idRangeOffset[endCodeIndex]/2 + (character - font_file->format4->startCode[endCodeIndex]) + &font_file->format4->idRangeOffset[endCodeIndex]);
+        }
+    } else {
+        // This is the id for the missing glyph
+        return 0;
+    }
 }
