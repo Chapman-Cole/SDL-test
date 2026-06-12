@@ -329,6 +329,6 @@ void FontParser_release_font(OTFFontFile** font_file);
 
 void FontParser_print_font(OTFFontFile* font_file, FILE* output);
 
-uint32_t FontParser_get_glyphID(OTFFontFile* font_file, uint32 character);
+uint16_t FontParser_get_glyphID(OTFFontFile* font_file, uint16_t character);
 
 #endif

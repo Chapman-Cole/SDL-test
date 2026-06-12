@@ -63,6 +63,7 @@ void glyph_object_set_points(RenderObject* points, OTFFontFile* font, uint32_t g
     if (scaling != NULL) {
         flags = scaling->flags;
 
+        // Remember to implement pivot point calculation at some point (that is the else condition for this flag)
         if (scaling->flags & CG_ARGS_ARE_XY_VALUES) {
             offsetX = scaling->arg1;
             offsetY = scaling->arg2;
@@ -336,7 +337,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         (vec4){196.0/255.0, 164.0/255.0, 132.0/255.0, 1.0},
         4);
 
-    font = FontParser_acquire_font("/usr/share/fonts/Adwaita/AdwaitaMono-Regular.ttf");
+    font = FontParser_acquire_font("/usr/share/fonts/TTF/DejaVuMathTeXGyre.ttf");
 
     uint32_t character = L'ö';
     glyph_object_create(&renderedGlyph, font, character);

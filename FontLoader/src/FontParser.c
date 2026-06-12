@@ -1254,20 +1254,23 @@ void FontParser_print_font(OTFFontFile* font_file, FILE* output) {
     FontParser_print_table_glyf(font_file->glyf, output);
 }
 
-uint32_t FontParser_get_glyphID(OTFFontFile* font_file, uint32 character) {
-    uint32 segments = font_file->format4->segCountX2 / 2;
+uint16_t FontParser_get_glyphID(OTFFontFile* font_file, uint16_t character) {
+    uint16 segments = font_file->format4->segCountX2 / 2;
 
-    // Get the index of the first end code greater than or equal to character
-    int64_t endCodeIndex = -1;
-    for (uint32 i = 0; i < segments; i++) {
-        if (font_file->format4->endCode[i] >= character) {
-            endCodeIndex = i;
-            break;
+    int32_t endCodeIndex = segments - 1;
+    int32_t low = 0;
+    int32_t high = segments - 1;
+    int32_t mid;
+
+    while (low <= high) {
+        mid = low + (high - low) / 2;
+
+        if (font_file->format4->endCode[mid] >= character) {
+            endCodeIndex = mid;
+            high = mid - 1;
+        } else {
+            low = mid + 1;
         }
-    }
-
-    if (endCodeIndex < 0) {
-        return 0;
     }
 
     // Make sure the character falls within the range of the segment
@@ -1276,9 +1279,9 @@ uint32_t FontParser_get_glyphID(OTFFontFile* font_file, uint32 character) {
             int32_t glyphID = (int32_t)font_file->format4->idDelta[endCodeIndex] + (int32_t)character;
 
             if (glyphID > 0) {
-                return (uint32_t)glyphID;
+                return (uint16)glyphID;
             } else {
-                return (uint32)glyphID + 65536;
+                return (uint16)(glyphID + 65536);
             }
         } else {
             return *(font_file->format4->idRangeOffset[endCodeIndex]/2 + (character - font_file->format4->startCode[endCodeIndex]) + &font_file->format4->idRangeOffset[endCodeIndex]);
