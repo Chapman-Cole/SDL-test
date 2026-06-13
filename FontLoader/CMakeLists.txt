@@ -4,7 +4,7 @@ project(FontLoader LANGUAGES C CXX)
 # >>>>>>>>>>>>>>>>>>>>>>> OBJECT LIB COMPILATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 # Compile the files once to an object library so the static and dynamic link versions can be built later on
-add_library(FontLoaderObjectLib OBJECT src/FontParser.c)
+add_library(FontLoaderObjectLib OBJECT src/FontParser.c src/FontVectorTypes.c src/FontMeshGenerator.c src/FontCurves.c)
 
 # Provide the object library with the necessary include directories for compilation
 target_include_directories(FontLoaderObjectLib PRIVATE "include")

@@ -26,7 +26,15 @@ typedef struct RenderItem {
     RenderItemSortKey sortKey;
     GraphicsPipeline* pipeline;
     union {
-        RenderObject* object;
+        struct {    
+            RenderObject* object;
+            // This allows for multiple copies of the same object to be rendered
+            vec3 objPos;
+            vec3 objScale;
+            versor objQuaternion;
+            uint8_t vertexUniform[128];
+            uint8_t fragmentUniform[128];
+        };
         InstanceRenderObject* instanceObject;
         TextRenderObject* textObject;
     };

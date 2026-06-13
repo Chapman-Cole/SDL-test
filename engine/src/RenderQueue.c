@@ -60,9 +60,20 @@ int render_queue_add(RenderQueue* queue, RenderObject* object) {
         .material = object->material,
         .pipeline = object->pipeline,
         .object = object,
+        .objPos = {object->pos[0], object->pos[1], object->pos[2]},
+        .objScale = {object->scale[0], object->scale[1], object->scale[2]},
+        .objQuaternion = {object->quaternion[0], object->quaternion[1], object->quaternion[2], object->quaternion[3]},
         .objectType = RENDER_ITEM_OBJECT,
         .sortKey = key
     };
+
+    if (object->vertexUniform.uniform != NULL && object->vertexUniform.uniformSize != 0) {
+        memcpy(queue->renderItems[queue->len].vertexUniform, object->vertexUniform.uniform, object->vertexUniform.uniformSize);
+    }
+
+    if (object->fragmentUniform.uniform != NULL && object->fragmentUniform.uniformSize != 0) {
+        memcpy(queue->renderItems[queue->len].fragmentUniform, object->fragmentUniform.uniform, object->fragmentUniform.uniformSize);
+    }
 
     queue->len++;
 
@@ -349,9 +360,9 @@ int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target
         if (queue->renderItems[i].objectType == RENDER_ITEM_OBJECT) {
             mat4 objectTransform;
             glm_mat4_identity(objectTransform);
-            glm_translate(objectTransform, queue->renderItems[i].object->pos);
-            glm_quat_rotate(objectTransform, queue->renderItems[i].object->quaternion, objectTransform);
-            glm_scale(objectTransform, queue->renderItems[i].object->scale);
+            glm_translate(objectTransform, queue->renderItems[i].objPos);
+            glm_quat_rotate(objectTransform, queue->renderItems[i].objQuaternion, objectTransform);
+            glm_scale(objectTransform, queue->renderItems[i].objScale);
 
             struct ModelData engineObjectData;
             glm_mat4_copy(VP, engineObjectData.VP);
@@ -361,11 +372,11 @@ int render_queue_submit(RenderQueue* queue, SDL_GPUColorTargetInfo* color_target
 
             // Push user object specific data
             if (queue->renderItems[i].object->vertexUniform.uniform != NULL) {
-                SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->vertexUniform.uniform, queue->renderItems[i].object->vertexUniform.uniformSize);
+                SDL_PushGPUVertexUniformData(commandBuffer, UNIFORM_VERTEX_USER_OBJECT_DATA_SLOT, queue->renderItems[i].vertexUniform, queue->renderItems[i].object->vertexUniform.uniformSize);
             }
 
             if (queue->renderItems[i].object->fragmentUniform.uniform != NULL) {
-                SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT, queue->renderItems[i].object->fragmentUniform.uniform, queue->renderItems[i].object->fragmentUniform.uniformSize);
+                SDL_PushGPUFragmentUniformData(commandBuffer, UNIFORM_FRAGMENT_USER_OBJECT_DATA_SLOT, queue->renderItems[i].fragmentUniform, queue->renderItems[i].object->fragmentUniform.uniformSize);
             }
 
             SDL_GPUBufferBinding bufferBindings[1];
