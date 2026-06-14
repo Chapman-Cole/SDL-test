@@ -12,7 +12,7 @@ typedef struct StraightLine {
 typedef struct BezierCurve {
     fvec2 p1;
     fvec2 control;
-    fvec3 p2;
+    fvec2 p2;
 } BezierCurve;
 
 typedef struct FontContour {
@@ -34,7 +34,8 @@ void FontCharacter_create(FontCharacter* fontChar, OTFFontFile* font, uint32_t c
 
 void FontCharacter_destroy(FontCharacter* fontChar);
 
-
+// intersections will become a dynamic array of fvec2 type
+void FontCharacter_calc_intersections(FontCharacter* fontChar, float hLineYVal, DynamicArray* intersections);
 
 
 #endif

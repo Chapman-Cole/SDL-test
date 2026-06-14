@@ -22,6 +22,9 @@ FontCharacter renderedChar;
 RenderObject basePoint;
 RenderObject baseLine;
 
+float intersectionLineY = 0.0;
+RenderObject intersectionLine;
+
 void draw_straight_line(fvec2 p1, fvec2 p2, RenderQueue* rQueue) {
     float centerX = (p1.x + p2.x) / 2.0;
     float centerY = (p1.y + p2.y) / 2.0;
@@ -35,7 +38,7 @@ void draw_straight_line(fvec2 p1, fvec2 p2, RenderQueue* rQueue) {
     glm_quat(baseLine.quaternion, angle, 0, 0, 1.0);
 
     baseLine.scale[0] = length / 2.0;
-    baseLine.scale[1] = 2;
+    baseLine.scale[1] = 3.2;
 
     render_queue_add(rQueue, &baseLine);
 }
@@ -108,7 +111,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     uniform_buffer_set_float(
         &pointMat.uniform,
         material_get_handle(&pointMat, &STRING("radius")),
-        10.0);
+        13.0);
     uniform_buffer_set_vec(
         &pointMat.uniform,
         material_get_handle(&pointMat, &STRING("color")),
@@ -134,6 +137,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     render_object_create(&baseLine, &linePipeline, &lineMat);
     meshobject_load_objfile(&baseLine.mesh, STRING("../../objects/Quad.obj"));
 
+    render_object_create(&intersectionLine, &linePipeline, &lineMat);
+    meshobject_load_objfile(&intersectionLine.mesh, STRING("../../objects/Quad.obj"));
+
     return SDL_APP_CONTINUE;
 }
 
@@ -144,8 +150,17 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         currGlyph = font->glyf->glyphs[FontParser_get_glyphID(font, event->key.key)];
         FontCharacter_destroy(&renderedChar);
         FontCharacter_create(&renderedChar, font, event->key.key);
-    }
+    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        if (event->button.button == SDL_BUTTON_LEFT) {
+            float mouseX, mouseY;
+            SDL_GetMouseState(&mouseX, &mouseY);
 
+            int windowWidth, windowHeight;
+            SDL_GetWindowSize(get_SDL_main_window(), &windowWidth, &windowHeight);
+    
+            intersectionLineY = 2.0 * (0.5 - mouseY / (float)(windowHeight));
+        }
+    }
     return SDL_APP_CONTINUE;
 }
 
@@ -167,48 +182,50 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     render_queue_init2D(&rQueue, &cam, (float)windowWidth / (float)windowHeight);
     rQueue.backgroundColor = (SDL_FColor){.r = 0.3, .g = 0.4, .b = 0.3, .a = 1.0};
 
-    for (uint32_t i = 0; i < renderedChar.contourPoints.len; i++) {
-        FontContourPoints contourPoints = ((FontContourPoints*)renderedChar.contourPoints.arr)[i];
-        for (uint32_t j = 0; j < contourPoints.points.len; j++) {
-            fvec2 currPoint = ((fvec2*)contourPoints.points.arr)[j];
-            basePoint.pos[0] = currPoint.x;
-            basePoint.pos[1] = currPoint.y;
+    for (uint32_t i = 0; i < renderedChar.contours.len; i++) {
+        FontContour currContour = ((FontContour*)renderedChar.contours.arr)[i];
+        for (uint32_t j = 0; j < currContour.lines.len; j++) {
+            StraightLine currLine = ((StraightLine*)currContour.lines.arr)[j];
+            draw_straight_line(currLine.p1, currLine.p2, &rQueue);
+        }
 
-            basePoint.scale[0] = 10.0;
-            basePoint.scale[1] = 10.0;
-            basePoint.scale[2] = 10.0;
-
-            bool p1OnCurve = ((bool*)contourPoints.flags.arr)[j];
-            bool p2OnCurve;
-
-            fvec2 p1 = {basePoint.pos[0], basePoint.pos[1]};
-            fvec2 p2;
-            if (j == contourPoints.points.len - 1) {
-                p2 = ((fvec2*)contourPoints.points.arr)[0];
-                p2OnCurve = ((bool*)contourPoints.flags.arr)[0];
-            } else {
-                p2 = ((fvec2*)contourPoints.points.arr)[j + 1];
-                p2OnCurve = ((bool*)contourPoints.flags.arr)[j + 1];
-            }
-
-            if (p1OnCurve == true && p2OnCurve == true) {
-                draw_straight_line(p1, p2, &rQueue);
-            } else if (p1OnCurve == true && p2OnCurve == false) {
-                fvec2 p3;
-
-                if (j == contourPoints.points.len - 2) {
-                    p3 = ((fvec2*)contourPoints.points.arr)[0];
-                } else {
-                    p3 = ((fvec2*)contourPoints.points.arr)[j + 2];
-                }
-
-                draw_bezier_curve(p1, p2, p3, 5, &rQueue);
-            }
-
-            memcpy(basePoint.fragmentUniform.uniform, (float[]){basePoint.pos[0], basePoint.pos[1], 0.0}, 3 * sizeof(float));
-            render_queue_add(&rQueue, &basePoint);
+        for (uint32_t j = 0; j < currContour.curves.len; j++) {
+            BezierCurve currCurve = ((BezierCurve*)currContour.curves.arr)[j];
+            draw_bezier_curve(currCurve.p1, currCurve.control, currCurve.p2, 5, &rQueue);
         }
     }
+
+    vec2 tempTranslation;
+    camera2D_screen_to_world(&cam, (float)windowWidth / (float)windowHeight, (vec2){0.0, intersectionLineY}, tempTranslation);
+
+    intersectionLine.pos[0] = centerX;
+    intersectionLine.pos[1] = tempTranslation[1];
+
+    // Have to remember to account for the scaling according to aspect ratio
+    intersectionLine.scale[0] = distX * 1.2 * (float)windowHeight * (float)windowWidth;
+    intersectionLine.scale[1] = 4.0;
+    render_queue_add(&rQueue, &intersectionLine);
+
+    DynamicArray intersections;
+    FontCharacter_calc_intersections(&renderedChar, intersectionLine.pos[1], &intersections);
+
+    for (uint32_t i = 0; i < intersections.len; i++) {
+        fvec2 currPoint = ((fvec2*)intersections.arr)[i];
+
+        basePoint.pos[0] = currPoint.x;
+        basePoint.pos[1] = currPoint.y;
+
+        basePoint.scale[0] = 13.0;
+        basePoint.scale[1] = 13.0;
+
+        ((float*)basePoint.fragmentUniform.uniform)[0] = basePoint.pos[0];
+        ((float*)basePoint.fragmentUniform.uniform)[1] = basePoint.pos[1];
+        ((float*)basePoint.fragmentUniform.uniform)[2] = 0.0;
+
+        render_queue_add(&rQueue, &basePoint);
+    }
+
+    DynamicArray_destroy(&intersections);
 
     render_queue_submit(&rQueue, NULL, 0, 0, false);
 
@@ -216,6 +233,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    render_object_destroy(&intersectionLine);
     render_object_destroy(&basePoint);
     render_object_destroy(&baseLine);
     FontCharacter_destroy(&renderedChar);

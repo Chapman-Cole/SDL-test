@@ -1,5 +1,6 @@
 #include "FontCurves.h"
 #include <stdbool.h>
+#include <math.h>
 
 typedef struct GlyphScaler {
     int16_t offsetX;
@@ -89,12 +90,13 @@ static void font_contour_add_simple_glyph_points(FontCharacter* fontChar, OTFFon
     Glyph glyph = font->glyf->glyphs[glyphID];
 
     uint32_t startIndex = 0;
+    uint32_t endIndex = 0;
     for (uint32_t i = 0; i < glyph.header.numberOfContours; i++) {
         FontContourPoints contourPoints;
         DynamicArray_create(&contourPoints.points, sizeof(fvec2));
         DynamicArray_create(&contourPoints.flags, sizeof(bool));
         
-        uint32_t endIndex = glyph.sg.endPtsOfContours[i];
+        endIndex = glyph.sg.endPtsOfContours[i];
         for (uint32_t j = startIndex; j <= endIndex; j++) {
             uint32_t j2 = j + 1;
             if (j2 > endIndex) {
@@ -123,11 +125,15 @@ static void font_contour_add_simple_glyph_points(FontCharacter* fontChar, OTFFon
                         .y = ((float)absP1.y + (float)absP2.y) / 2.0
                     }
                 );
-                DynamicArray_append(&contourPoints.flags, &p2OnCurve);
+                // (bool[])(true) is a trick to append a single element to an array of bools because dereferencing the passed pointer
+                // will give the value of the first element, which is true
+                DynamicArray_append(&contourPoints.flags, (bool[]){true});
             }
         }
 
         DynamicArray_append(&fontChar->contourPoints, &contourPoints);
+
+        startIndex = endIndex + 1;
     }
 
     DynamicArray_destroy(&absolutePoints);
@@ -182,6 +188,105 @@ static void font_contour_add_composite_glyph_points(FontCharacter* fontChar, OTF
     }
 }
 
+void straight_line_calc_intersections(StraightLine* line, float hLineYVal, DynamicArray* intersections) {
+    if ((hLineYVal > line->p1.y && hLineYVal > line->p2.y) || (hLineYVal < line->p1.y && hLineYVal < line->p2.y)) {
+        return;
+    }
+
+    float numerator = line->p2.y - line->p1.y;
+    float denominator = line->p2.x - line->p1.x;
+
+    // Horizontal line in this case would mean infinite intersections since y values above or below hLineYVal were already filtered out.
+    // For now, I think the easiest way to handle this case is to just append the two endpoints of the line
+    if (numerator == 0) {
+        DynamicArray_append(intersections, &line->p1);
+        DynamicArray_append(intersections, &line->p2);
+        return;
+    }
+
+    // Vertical line so just append a point with the x value of the line and the y value of hLineYVal
+    if (denominator == 0) {
+        DynamicArray_append(intersections, &(fvec2){line->p1.x, hLineYVal});
+        return;
+    }
+
+    // This just comes from solving for x in point slope
+    float inverseSlope = denominator / numerator;
+    float xIntersection = line->p1.x + inverseSlope * (hLineYVal - line->p1.y);
+
+    DynamicArray_append(intersections, &(fvec2){xIntersection, hLineYVal});
+}
+
+static inline fvec2 calc_bezier_curve(BezierCurve* curve, float t) {
+    float oneMinusT = 1.0 - t;
+    float oneMinusTSquared = oneMinusT * oneMinusT;
+    float tSquared = t * t;
+
+    return (fvec2){
+        .x = oneMinusTSquared * curve->p1.x + 2.0 * oneMinusT * t * curve->control.x + tSquared * curve->p2.x,
+        .y = oneMinusTSquared * curve->p1.y + 2.0 * oneMinusT * t * curve->control.y + tSquared * curve->p2.y
+    };
+}
+
+void bezier_curve_calc_intersections(BezierCurve* curve, float hLineYVal, DynamicArray* intersections) {
+    float ay = curve->p1.y - 2.0 * curve->control.y + curve->p2.y;
+    float by = -2.0 * curve->p1.y + 2.0 * curve->control.y;
+    float cy = curve->p1.y;
+    cy -= hLineYVal; // Shift the curve down by hLineYVal so the roots correspond to the intersections, if any
+
+    float discriminantY = (by * by) - 4.0 * ay * cy;
+
+    if (discriminantY > 0.0) {
+        float radical = sqrtf(discriminantY);
+        float t1 = (-by - radical) / (2.0 * ay);
+        float t2 = (-by + radical) / (2.0 * ay);
+
+        fvec2 intersection1, intersection2;
+
+        // If either t value is less than 0 or greater than 1, that means it is an extraneous solution since
+        // bezier curves are really only meant to be used for t values between 0 and 1 (inclusive)
+
+        if (t1 >= 0.0 && t1 <= 1.0) {
+            fvec2 intersection1;
+            intersection1 = calc_bezier_curve(curve, t1);
+            DynamicArray_append(intersections, &intersection1);
+        }
+
+        if (t2 >= 0.0 && t2 <= 1.0) {
+            fvec2 intersection2;
+            intersection2 = calc_bezier_curve(curve, t2);
+            DynamicArray_append(intersections, &intersection2);
+        }
+    } else if (discriminantY == 0.0) {
+        float t = -by / (2.0 * ay);
+
+        if (t >= 0.0 && t <= 1.0) {
+            fvec2 intersectionPoint = calc_bezier_curve(curve, t);
+            DynamicArray_append(intersections, &intersectionPoint);
+        }
+    }
+}
+
+void FontCharacter_calc_intersections(FontCharacter* fontChar, float hLineYVal, DynamicArray* intersections) {
+    DynamicArray_create(intersections, sizeof(fvec2));
+
+    for (uint32_t i = 0; i < fontChar->contours.len; i++) {
+        FontContour currContour = ((FontContour*)fontChar->contours.arr)[i];
+
+        // Calculate straight line intersections
+        for (uint32_t j = 0; j < currContour.lines.len; j++) {
+            StraightLine currLine = ((StraightLine*)currContour.lines.arr)[j];
+            straight_line_calc_intersections(&currLine, hLineYVal, intersections);
+        }
+
+        // Calculate bezier curve line intersections
+        for (uint32_t j = 0; j < currContour.curves.len; j++) {
+            BezierCurve currCurve = ((BezierCurve*)currContour.curves.arr)[j];
+            bezier_curve_calc_intersections(&currCurve, hLineYVal, intersections);
+        }
+    }
+}
+
 void FontCharacter_create(FontCharacter* fontChar, OTFFontFile* font, uint32_t character) {
     uint32_t glyphID = FontParser_get_glyphID(font, character);
 
@@ -196,7 +301,56 @@ void FontCharacter_create(FontCharacter* fontChar, OTFFontFile* font, uint32_t c
         font_contour_add_composite_glyph_points(fontChar, font, glyphID);
     } else {
         return;
-    }  
+    }
+
+    for (uint32_t i = 0; i < fontChar->contourPoints.len; i++) {
+        FontContourPoints contourPoints = ((FontContourPoints*)fontChar->contourPoints.arr)[i];
+        FontContour contour;
+        DynamicArray_create(&contour.lines, sizeof(StraightLine));
+        DynamicArray_create(&contour.curves, sizeof(BezierCurve));
+
+        for (uint32_t j = 0; j < contourPoints.points.len; j++) {
+            bool p1OnCurve = ((bool*)contourPoints.flags.arr)[j];
+            bool p2OnCurve;
+
+            fvec2 p1 = ((fvec2*)contourPoints.points.arr)[j];
+            fvec2 p2;
+            if (j == contourPoints.points.len - 1) {
+                p2 = ((fvec2*)contourPoints.points.arr)[0];
+                p2OnCurve = ((bool*)contourPoints.flags.arr)[0];
+            } else {
+                p2 = ((fvec2*)contourPoints.points.arr)[j + 1];
+                p2OnCurve = ((bool*)contourPoints.flags.arr)[j + 1];
+            }
+
+            if (p1OnCurve == true && p2OnCurve == true) {
+                StraightLine currLine = {
+                    .p1 = {p1.x, p1.y},
+                    .p2 = {p2.x, p2.y}
+                };
+                DynamicArray_append(&contour.lines, &currLine);
+            } else if (p1OnCurve == true && p2OnCurve == false) {
+                fvec2 p3;
+
+                if (j == contourPoints.points.len - 2) {
+                    p3 = ((fvec2*)contourPoints.points.arr)[0];
+                } else if (j == contourPoints.points.len - 1 ) {
+                    p3 = ((fvec2*)contourPoints.points.arr)[1];
+                } else {
+                    p3 = ((fvec2*)contourPoints.points.arr)[j + 2];
+                }
+
+                BezierCurve currCurve = {
+                    .p1 = {p1.x, p1.y},
+                    .control = {p2.x, p2.y},
+                    .p2 = {p3.x, p3.y}
+                };
+                DynamicArray_append(&contour.curves, &currCurve);
+            }
+        }
+
+        DynamicArray_append(&fontChar->contours, &contour);
+    }
 }
 
 void FontCharacter_destroy(FontCharacter* fontChar) {
