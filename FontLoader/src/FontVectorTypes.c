@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void DynamicArray_create(DynamicArray* dyn_arr, uint32_t element_size) {
+void DynamicArray_create(DynamicArray* dyn_arr, size_t element_size) {
     dyn_arr->len = 0;
     dyn_arr->capacity = 1;
     dyn_arr->element_size = element_size;
@@ -16,7 +16,7 @@ void DynamicArray_append(DynamicArray* dyn_arr, void* data) {
         void* test = realloc(dyn_arr->arr, dyn_arr->capacity * dyn_arr->element_size);
 
         if (test == NULL) {
-            printf("Failed to allocate memory for dynamic array\n");
+            printf("Failed to allocate memory for dynamic array.\nAttempted to allocate %u bytes.\nlen=%u\ncapacity=%u\nelement_size=%u\n", dyn_arr->capacity * dyn_arr->element_size, dyn_arr->len, dyn_arr->capacity, dyn_arr->element_size);
             exit(-1);
         }
 
@@ -27,7 +27,7 @@ void DynamicArray_append(DynamicArray* dyn_arr, void* data) {
     dyn_arr->len++;
 }
 
-void DynamicArray_insert(DynamicArray* dyn_arr, void* data, uint32_t index) {
+void DynamicArray_insert(DynamicArray* dyn_arr, void* data, size_t index) {
     if (dyn_arr->len + 1 >= dyn_arr->capacity) {
         dyn_arr->capacity *= 2;
 
@@ -66,7 +66,7 @@ void DynamicArray_pop(DynamicArray* dyn_arr) {
     dyn_arr->len--;
 }
 
-void DynamicArray_remove(DynamicArray* dyn_arr, uint32_t index) {
+void DynamicArray_remove(DynamicArray* dyn_arr, size_t index) {
     if (dyn_arr->len - 1 < dyn_arr->capacity / 2) {
         dyn_arr->capacity /= 2;
         if (dyn_arr->capacity == 0) {

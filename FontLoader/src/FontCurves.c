@@ -289,6 +289,8 @@ void FontCharacter_calc_intersections(FontCharacter* fontChar, float hLineYVal, 
 
 void FontCharacter_create(FontCharacter* fontChar, OTFFontFile* font, uint32_t character) {
     uint32_t glyphID = FontParser_get_glyphID(font, character);
+    fontChar->glyphID = glyphID;
+    fontChar->font = font;
 
     DynamicArray_create(&fontChar->contourPoints, sizeof(FontContourPoints));
     DynamicArray_create(&fontChar->contours, sizeof(FontContour));
@@ -351,6 +353,90 @@ void FontCharacter_create(FontCharacter* fontChar, OTFFontFile* font, uint32_t c
 
         DynamicArray_append(&fontChar->contours, &contour);
     }
+}
+
+void fvec2_dynamic_array_sort_x(DynamicArray* dyn_arr) {
+    for (uint32_t i = 1; i < dyn_arr->len; i++) {
+        fvec2 curr_val = ((fvec2*)dyn_arr->arr)[i];
+        int64_t j = i - 1;
+
+        while (j >= 0 && ((fvec2*)dyn_arr->arr)[j].x > curr_val.x) {
+            ((fvec2*)dyn_arr->arr)[j + 1] = ((fvec2*)dyn_arr->arr)[j];
+            j--;
+        }
+
+        ((fvec2*)dyn_arr->arr)[j + 1] = curr_val;
+    }
+}
+
+void FontCharacter_generate_mesh(FontCharacter* fontChar, DynamicArray* vertices, DynamicArray* indices, uint32_t resolution) {
+    DynamicArray_create(vertices, sizeof(fvec3));
+    DynamicArray_create(indices, sizeof(uint32_t));
+
+    Glyph glyph = fontChar->font->glyf->glyphs[fontChar->glyphID];
+
+    float delta = (float)(glyph.header.yMax - glyph.header.yMin) / (float)resolution;
+    float startYVal = (float)glyph.header.yMin;
+    float endYVal;
+
+    DynamicArray prevIntersections, currIntersections;
+    FontCharacter_calc_intersections(fontChar, startYVal, &prevIntersections);
+    fvec2_dynamic_array_sort_x(&prevIntersections);
+    
+    uint32_t prevIntersectionsStartIndex, currIntersectionsStartIndex;
+    for (uint32_t i = 0; i < prevIntersections.len; i++) {
+        fvec2 currPoint = ((fvec2*)prevIntersections.arr)[i];
+        DynamicArray_append(vertices, &(fvec3){currPoint.x, currPoint.y, 0.0});
+    }
+
+    prevIntersectionsStartIndex = 0;
+    currIntersectionsStartIndex = vertices->len;
+
+    for (uint32_t i = 0; i < resolution; i++) {
+        endYVal = startYVal + delta;
+        FontCharacter_calc_intersections(fontChar, endYVal, &currIntersections);
+        fvec2_dynamic_array_sort_x(&currIntersections);
+
+        for (size_t j = 0; j < currIntersections.len; j++) {
+            fvec2 currPoint = ((fvec2*)currIntersections.arr)[j];
+            DynamicArray_append(vertices, &(fvec3){currPoint.x, currPoint.y, 0.0});
+        }
+
+        // The basic idea is to construct quads (which then have to be broken down into two triangles)
+        if (prevIntersections.len != 0 && prevIntersections.len == currIntersections.len) {
+            // !!!!!!! Make sure the length of the intersection arrays is not 0 !!!!!!!!!!!!!!!!
+            // if this is forgotten, then the prevIntersections.len - 1 will cause the unsigned number to wrap around to its
+            // maximum value and cause all sorts of memory issues because the loop runs a ton of times. (This was an absolute nightmare to debug.)
+
+            for (size_t j = 0; j < prevIntersections.len - 1; j++) {
+                if ((j+1) % 2 == 0) {
+                    // Means you are in one of the holes defined by the contour
+                    continue;
+                }
+
+                // Counter clockwise winding order
+                // Triangle 1
+                DynamicArray_append(indices, (uint32_t[]){j + currIntersectionsStartIndex});
+                DynamicArray_append(indices, (uint32_t[]){j + prevIntersectionsStartIndex});
+                DynamicArray_append(indices, (uint32_t[]){j + 1 + prevIntersectionsStartIndex});
+
+                // Triangle 2
+                DynamicArray_append(indices, (uint32_t[]){j + 1 + prevIntersectionsStartIndex});
+                DynamicArray_append(indices, (uint32_t[]){j + currIntersectionsStartIndex});
+                DynamicArray_append(indices, (uint32_t[]){j + 1 + currIntersectionsStartIndex});
+            }
+        } // handle the other cases later on
+
+        DynamicArray_destroy(&prevIntersections);
+        prevIntersections = currIntersections;
+
+        prevIntersectionsStartIndex = currIntersectionsStartIndex;
+        currIntersectionsStartIndex = vertices->len;
+
+        startYVal = endYVal;
+    }
+    
+    DynamicArray_destroy(&prevIntersections);
 }
 
 void FontCharacter_destroy(FontCharacter* fontChar) {

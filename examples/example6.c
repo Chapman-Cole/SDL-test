@@ -14,6 +14,7 @@ GraphicsPipeline pointsPipeline;
 GraphicsPipeline linePipeline;
 Material pointMat;
 Material lineMat;
+Material meshMat;
 
 Glyph currGlyph;
 
@@ -22,7 +23,10 @@ FontCharacter renderedChar;
 RenderObject basePoint;
 RenderObject baseLine;
 
+RenderObject charMesh;
+
 float intersectionLineY = 0.0;
+float intersectionLineY2 = 0.0;
 RenderObject intersectionLine;
 
 void draw_straight_line(fvec2 p1, fvec2 p2, RenderQueue* rQueue) {
@@ -99,6 +103,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     graphics_pipeline_attach_fragment_shader(&pointsPipeline, &STRING("../../shaders/example6/frag.glsl"), &STRING("main"), SHADER_COMPILATION_GLSL_PATH);
     graphics_pipeline_generate(&pointsPipeline);
 
+    // Should add depth buffer/z buffer soon to graphics pipeline, which will involve creating a gpu texture unfortunately
     graphics_pipeline_init(&linePipeline);
     graphics_pipeline_append_vertex_buffer_description(&linePipeline, SDL_GPU_VERTEXINPUTRATE_VERTEX, 3 * sizeof(float));
     graphics_pipeline_append_vertex_attribute(&linePipeline, 0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
@@ -125,9 +130,17 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         (vec4){196.0 / 255.0, 164.0 / 255.0, 132.0 / 255.0, 1.0},
         4);
 
+    material_create(&meshMat, &linePipeline);
+    uniform_buffer_set_vec(
+        &meshMat.uniform,
+        material_get_handle(&meshMat, &STRING("color")),
+        (vec4){0.0, 0.0, 0.0, 1.0},
+        4
+    );
+
     font = FontParser_acquire_font("/usr/share/fonts/TTF/DejaVuSans.ttf");
 
-    uint32_t character = L'Ω';
+    uint32_t character = L';';
     currGlyph = font->glyf->glyphs[FontParser_get_glyphID(font, character)];
     FontCharacter_create(&renderedChar, font, character);
 
@@ -140,6 +153,16 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     render_object_create(&intersectionLine, &linePipeline, &lineMat);
     meshobject_load_objfile(&intersectionLine.mesh, STRING("../../objects/Quad.obj"));
 
+    render_object_create(&charMesh, &linePipeline, &meshMat);
+    
+    DynamicArray charMeshVerts, charMeshIndices;
+    FontCharacter_generate_mesh(&renderedChar, &charMeshVerts, &charMeshIndices, 50);
+
+    meshobject_load_manual(&charMesh.mesh, (float*)charMeshVerts.arr, charMeshVerts.len * charMeshVerts.element_size, (Uint32*)charMeshIndices.arr, charMeshIndices.len * charMeshIndices.element_size);
+
+    DynamicArray_destroy(&charMeshVerts);
+    DynamicArray_destroy(&charMeshIndices);
+
     return SDL_APP_CONTINUE;
 }
 
@@ -150,15 +173,32 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         currGlyph = font->glyf->glyphs[FontParser_get_glyphID(font, event->key.key)];
         FontCharacter_destroy(&renderedChar);
         FontCharacter_create(&renderedChar, font, event->key.key);
-    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-        if (event->button.button == SDL_BUTTON_LEFT) {
-            float mouseX, mouseY;
-            SDL_GetMouseState(&mouseX, &mouseY);
 
-            int windowWidth, windowHeight;
-            SDL_GetWindowSize(get_SDL_main_window(), &windowWidth, &windowHeight);
-    
+        GPB_submit_all_transfer_buffers();
+        meshobject_destroy(&charMesh.mesh);
+
+        DynamicArray charMeshVerts, charMeshIndices;
+        FontCharacter_generate_mesh(&renderedChar, &charMeshVerts, &charMeshIndices, 50);
+
+        if (charMeshVerts.len * charMeshVerts.capacity > 4 && charMeshIndices.len * charMeshIndices.capacity) {
+            meshobject_load_manual(&charMesh.mesh, (float*)charMeshVerts.arr, charMeshVerts.len * charMeshVerts.element_size, (Uint32*)charMeshIndices.arr, charMeshIndices.len * charMeshIndices.element_size);
+        } else {
+            meshobject_load_objfile(&charMesh.mesh, STRING("../../objects/Quad.obj"));
+        }
+
+        DynamicArray_destroy(&charMeshVerts);
+        DynamicArray_destroy(&charMeshIndices);
+    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        float mouseX, mouseY;
+        SDL_GetMouseState(&mouseX, &mouseY);
+
+        int windowWidth, windowHeight;
+        SDL_GetWindowSize(get_SDL_main_window(), &windowWidth, &windowHeight);
+
+        if (event->button.button == SDL_BUTTON_LEFT) {
             intersectionLineY = 2.0 * (0.5 - mouseY / (float)(windowHeight));
+        } else if (event->button.button == SDL_BUTTON_RIGHT) {
+            intersectionLineY2 = 2.0 * (0.5 - mouseY / (float)(windowHeight));
         }
     }
     return SDL_APP_CONTINUE;
@@ -227,12 +267,46 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     DynamicArray_destroy(&intersections);
 
+    camera2D_screen_to_world(&cam, (float)windowWidth / (float)windowHeight, (vec2){0.0, intersectionLineY2}, tempTranslation);
+
+    intersectionLine.pos[0] = centerX;
+    intersectionLine.pos[1] = tempTranslation[1];
+
+    // Have to remember to account for the scaling according to aspect ratio
+    intersectionLine.scale[0] = distX * 1.2 * (float)windowHeight * (float)windowWidth;
+    intersectionLine.scale[1] = 4.0;
+    render_queue_add(&rQueue, &intersectionLine);
+
+    FontCharacter_calc_intersections(&renderedChar, intersectionLine.pos[1], &intersections);
+
+    for (uint32_t i = 0; i < intersections.len; i++) {
+        fvec2 currPoint = ((fvec2*)intersections.arr)[i];
+
+        basePoint.pos[0] = currPoint.x;
+        basePoint.pos[1] = currPoint.y;
+
+        basePoint.scale[0] = 13.0;
+        basePoint.scale[1] = 13.0;
+
+        ((float*)basePoint.fragmentUniform.uniform)[0] = basePoint.pos[0];
+        ((float*)basePoint.fragmentUniform.uniform)[1] = basePoint.pos[1];
+        ((float*)basePoint.fragmentUniform.uniform)[2] = 0.0;
+
+        render_queue_add(&rQueue, &basePoint);
+    }
+
+    DynamicArray_destroy(&intersections);
+
+    charMesh.pos[2] = -2.0;
+    render_queue_add(&rQueue, &charMesh);
+
     render_queue_submit(&rQueue, NULL, 0, 0, false);
 
     return SDL_APP_CONTINUE;
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    render_object_destroy(&charMesh);
     render_object_destroy(&intersectionLine);
     render_object_destroy(&basePoint);
     render_object_destroy(&baseLine);
@@ -241,6 +315,7 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     FontParser_release_font(&font);
 
     material_destroy(&lineMat);
+    material_destroy(&meshMat);
     graphics_pipeline_destroy(&linePipeline);
 
     material_destroy(&pointMat);
