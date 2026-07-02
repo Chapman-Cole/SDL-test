@@ -250,7 +250,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     FontCharacter_calc_intersections(&renderedChar, intersectionLine.pos[1], &intersections);
 
     for (uint32_t i = 0; i < intersections.len; i++) {
-        fvec2 currPoint = ((fvec2*)intersections.arr)[i];
+        fvec2 currPoint = ((CurveIntersection*)intersections.arr)[i].point;
 
         basePoint.pos[0] = currPoint.x;
         basePoint.pos[1] = currPoint.y;
@@ -280,7 +280,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     FontCharacter_calc_intersections(&renderedChar, intersectionLine.pos[1], &intersections);
 
     for (uint32_t i = 0; i < intersections.len; i++) {
-        fvec2 currPoint = ((fvec2*)intersections.arr)[i];
+        fvec2 currPoint = ((CurveIntersection*)intersections.arr)[i].point;
 
         basePoint.pos[0] = currPoint.x;
         basePoint.pos[1] = currPoint.y;

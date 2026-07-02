@@ -32,11 +32,25 @@ typedef struct FontCharacter {
     uint32_t glyphID;
 } FontCharacter;
 
+typedef enum {
+    CURVE_INTERSECTION_LINE,
+    CURVE_INTERSECTION_BEZIER
+} CurveIntersectionType;
+
+typedef struct CurveIntersection {
+    uint8_t curveType;
+    union {
+        BezierCurve bezier;
+        StraightLine line;
+    };
+    fvec2 point;
+} CurveIntersection;
+
 void FontCharacter_create(FontCharacter* fontChar, OTFFontFile* font, uint32_t character);
 
 void FontCharacter_destroy(FontCharacter* fontChar);
 
-// intersections will become a dynamic array of fvec2 type
+// intersections will become a dynamic array of CurveIntersection type
 void FontCharacter_calc_intersections(FontCharacter* fontChar, float hLineYVal, DynamicArray* intersections);
 
 // vertices will become a dynamic array of fvec3s (which can also just be treated as an array of floats) and indices 

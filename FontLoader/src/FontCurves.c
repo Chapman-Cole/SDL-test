@@ -199,14 +199,14 @@ void straight_line_calc_intersections(StraightLine* line, float hLineYVal, Dynam
     // Horizontal line in this case would mean infinite intersections since y values above or below hLineYVal were already filtered out.
     // For now, I think the easiest way to handle this case is to just append the two endpoints of the line
     if (numerator == 0) {
-        DynamicArray_append(intersections, &line->p1);
-        DynamicArray_append(intersections, &line->p2);
+        DynamicArray_append(intersections, &(CurveIntersection){.curveType = CURVE_INTERSECTION_LINE, .line = *line, .point = line->p1});
+        DynamicArray_append(intersections, &(CurveIntersection){.curveType = CURVE_INTERSECTION_LINE, .line = *line, .point = line->p2});
         return;
     }
 
     // Vertical line so just append a point with the x value of the line and the y value of hLineYVal
     if (denominator == 0) {
-        DynamicArray_append(intersections, &(fvec2){line->p1.x, hLineYVal});
+        DynamicArray_append(intersections, &(CurveIntersection){.curveType = CURVE_INTERSECTION_LINE, .line = *line, .point = (fvec2){line->p1.x, hLineYVal}});
         return;
     }
 
@@ -214,7 +214,7 @@ void straight_line_calc_intersections(StraightLine* line, float hLineYVal, Dynam
     float inverseSlope = denominator / numerator;
     float xIntersection = line->p1.x + inverseSlope * (hLineYVal - line->p1.y);
 
-    DynamicArray_append(intersections, &(fvec2){xIntersection, hLineYVal});
+    DynamicArray_append(intersections, &(CurveIntersection){.curveType = CURVE_INTERSECTION_LINE, .line = *line, .point = (fvec2){xIntersection, hLineYVal}});
 }
 
 static inline fvec2 calc_bezier_curve(BezierCurve* curve, float t) {
@@ -249,26 +249,26 @@ void bezier_curve_calc_intersections(BezierCurve* curve, float hLineYVal, Dynami
         if (t1 >= 0.0 && t1 <= 1.0) {
             fvec2 intersection1;
             intersection1 = calc_bezier_curve(curve, t1);
-            DynamicArray_append(intersections, &intersection1);
+            DynamicArray_append(intersections, &(CurveIntersection){.curveType = CURVE_INTERSECTION_BEZIER, .bezier = *curve, .point = intersection1});
         }
 
         if (t2 >= 0.0 && t2 <= 1.0) {
             fvec2 intersection2;
             intersection2 = calc_bezier_curve(curve, t2);
-            DynamicArray_append(intersections, &intersection2);
+            DynamicArray_append(intersections, &(CurveIntersection){.curveType = CURVE_INTERSECTION_BEZIER, .bezier = *curve, .point = intersection2});
         }
     } else if (discriminantY == 0.0) {
         float t = -by / (2.0 * ay);
 
         if (t >= 0.0 && t <= 1.0) {
             fvec2 intersectionPoint = calc_bezier_curve(curve, t);
-            DynamicArray_append(intersections, &intersectionPoint);
+            DynamicArray_append(intersections, &(CurveIntersection){.curveType = CURVE_INTERSECTION_BEZIER, .bezier = *curve, .point = intersectionPoint});
         }
     }
 }
 
 void FontCharacter_calc_intersections(FontCharacter* fontChar, float hLineYVal, DynamicArray* intersections) {
-    DynamicArray_create(intersections, sizeof(fvec2));
+    DynamicArray_create(intersections, sizeof(CurveIntersection));
 
     for (uint32_t i = 0; i < fontChar->contours.len; i++) {
         FontContour currContour = ((FontContour*)fontChar->contours.arr)[i];
@@ -355,17 +355,17 @@ void FontCharacter_create(FontCharacter* fontChar, OTFFontFile* font, uint32_t c
     }
 }
 
-void fvec2_dynamic_array_sort_x(DynamicArray* dyn_arr) {
+void curve_intersection_dynamic_array_sort_x(DynamicArray* dyn_arr) {
     for (uint32_t i = 1; i < dyn_arr->len; i++) {
-        fvec2 curr_val = ((fvec2*)dyn_arr->arr)[i];
+        CurveIntersection curr_val = ((CurveIntersection*)dyn_arr->arr)[i];
         int64_t j = i - 1;
 
-        while (j >= 0 && ((fvec2*)dyn_arr->arr)[j].x > curr_val.x) {
-            ((fvec2*)dyn_arr->arr)[j + 1] = ((fvec2*)dyn_arr->arr)[j];
+        while (j >= 0 && ((CurveIntersection*)dyn_arr->arr)[j].point.x > curr_val.point.x) {
+            ((CurveIntersection*)dyn_arr->arr)[j + 1] = ((CurveIntersection*)dyn_arr->arr)[j];
             j--;
         }
 
-        ((fvec2*)dyn_arr->arr)[j + 1] = curr_val;
+        ((CurveIntersection*)dyn_arr->arr)[j + 1] = curr_val;
     }
 }
 
@@ -381,11 +381,11 @@ void FontCharacter_generate_mesh(FontCharacter* fontChar, DynamicArray* vertices
 
     DynamicArray prevIntersections, currIntersections;
     FontCharacter_calc_intersections(fontChar, startYVal, &prevIntersections);
-    fvec2_dynamic_array_sort_x(&prevIntersections);
+    curve_intersection_dynamic_array_sort_x(&prevIntersections);
     
     uint32_t prevIntersectionsStartIndex, currIntersectionsStartIndex;
     for (uint32_t i = 0; i < prevIntersections.len; i++) {
-        fvec2 currPoint = ((fvec2*)prevIntersections.arr)[i];
+        fvec2 currPoint = ((CurveIntersection*)prevIntersections.arr)[i].point;
         DynamicArray_append(vertices, &(fvec3){currPoint.x, currPoint.y, 0.0});
     }
 
@@ -395,10 +395,10 @@ void FontCharacter_generate_mesh(FontCharacter* fontChar, DynamicArray* vertices
     for (uint32_t i = 0; i < resolution; i++) {
         endYVal = startYVal + delta;
         FontCharacter_calc_intersections(fontChar, endYVal, &currIntersections);
-        fvec2_dynamic_array_sort_x(&currIntersections);
+        curve_intersection_dynamic_array_sort_x(&currIntersections);
 
         for (size_t j = 0; j < currIntersections.len; j++) {
-            fvec2 currPoint = ((fvec2*)currIntersections.arr)[j];
+            fvec2 currPoint = ((CurveIntersection*)currIntersections.arr)[j].point;
             DynamicArray_append(vertices, &(fvec3){currPoint.x, currPoint.y, 0.0});
         }
 
