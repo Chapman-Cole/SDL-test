@@ -44,6 +44,7 @@ typedef struct CurveIntersection {
         StraightLine line;
     };
     fvec2 point;
+    float slope;
 } CurveIntersection;
 
 void FontCharacter_create(FontCharacter* fontChar, OTFFontFile* font, uint32_t character);

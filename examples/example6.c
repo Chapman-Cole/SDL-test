@@ -6,6 +6,8 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#define FONT_CHARACTER_RESOLUTION 50
+
 Camera2D cam = CAMERA2D_DEFAULT;
 
 OTFFontFile* font;
@@ -156,7 +158,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     render_object_create(&charMesh, &linePipeline, &meshMat);
     
     DynamicArray charMeshVerts, charMeshIndices;
-    FontCharacter_generate_mesh(&renderedChar, &charMeshVerts, &charMeshIndices, 50);
+    FontCharacter_generate_mesh(&renderedChar, &charMeshVerts, &charMeshIndices, FONT_CHARACTER_RESOLUTION);
 
     meshobject_load_manual(&charMesh.mesh, (float*)charMeshVerts.arr, charMeshVerts.len * charMeshVerts.element_size, (Uint32*)charMeshIndices.arr, charMeshIndices.len * charMeshIndices.element_size);
 
@@ -178,7 +180,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         meshobject_destroy(&charMesh.mesh);
 
         DynamicArray charMeshVerts, charMeshIndices;
-        FontCharacter_generate_mesh(&renderedChar, &charMeshVerts, &charMeshIndices, 50);
+        FontCharacter_generate_mesh(&renderedChar, &charMeshVerts, &charMeshIndices, FONT_CHARACTER_RESOLUTION);
 
         if (charMeshVerts.len * charMeshVerts.capacity > 4 && charMeshIndices.len * charMeshIndices.capacity) {
             meshobject_load_manual(&charMesh.mesh, (float*)charMeshVerts.arr, charMeshVerts.len * charMeshVerts.element_size, (Uint32*)charMeshIndices.arr, charMeshIndices.len * charMeshIndices.element_size);
